@@ -1,4 +1,5 @@
 import { Hono } from 'hono'
+import { cors } from 'hono/cors'
 import { R2Bucket } from '@miniflare/r2'
 import { MemoryStorage } from '@miniflare/storage-memory'
 import { randomUUID } from 'crypto'
@@ -12,6 +13,16 @@ interface Env {
 
 // Create a Hono app
 const app = new Hono<{ Bindings: Env }>()
+
+// Add CORS middleware
+app.use('*', cors({
+  origin: ['http://localhost:5173', 'https://csv-manager.zhangzhibin.workers.dev'],
+  allowHeaders: ['Content-Type', 'Authorization'],
+  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  exposeHeaders: ['Content-Length', 'Content-Type'],
+  maxAge: 86400,
+  credentials: true
+}))
 
 // Initialize bucket variable that will be set appropriately
 let bucket: any;
