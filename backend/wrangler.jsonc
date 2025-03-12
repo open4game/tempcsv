@@ -11,8 +11,9 @@
       "preview_bucket_name": "csv-files-dev"
     }
   ],
-  "site": {
-    "bucket": "./public/static"
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS"
   }
   // "compatibility_flags": [
   //   "nodejs_compat"

@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto'
 interface Env {
   CSV_BUCKET: R2Bucket;
   // Add this for Workers Sites
-  __STATIC_CONTENT: KVNamespace;
+  // __STATIC_CONTENT: KVNamespace;
 }
 
 // Create a Hono app
@@ -248,58 +248,34 @@ if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
   console.log('Server is running on http://localhost:3000')
 }
 
-// Export the app for Cloudflare Workers
-export default {
-  fetch: (request: Request, env: Env, ctx: ExecutionContext) => {
-    // Try to serve static assets from Workers Sites
-    if (typeof env.__STATIC_CONTENT !== 'undefined') {
-      const url = new URL(request.url)
-      // If the request is for a static asset
-      if (!url.pathname.startsWith('/api/') && 
-          !url.pathname.startsWith('/files/') && 
-          !url.pathname.startsWith('/upload') && 
-          !url.pathname.startsWith('/save') && 
-          !url.pathname.startsWith('/update') && 
-          !url.pathname.startsWith('/debug')) {
-        
-        // Try to serve from KV
-        return env.__STATIC_CONTENT.get(url.pathname.slice(1) || 'index.html', 'stream')
-          .then(asset => {
-            if (asset === null) {
-              // If the asset is not found, try index.html
-              if (url.pathname !== '/index.html' && !url.pathname.includes('.')) {
-                return env.__STATIC_CONTENT.get('index.html', 'stream')
-              }
-              // If still not found, return 404
-              return new Response('Not Found', { status: 404 })
-            }
-            return new Response(asset, {
-              headers: {
-                'Content-Type': getContentType(url.pathname)
-              }
-            })
-          })
-      }
-    }
+// // Export the app for Cloudflare Workers
+// export default {
+//   fetch: (request: Request, env: Env, ctx: ExecutionContext) => {
+//     // Set the bucket in production
+//     if (typeof process === 'undefined' || process.env.NODE_ENV !== 'development') {
+//       bucket = env.CSV_BUCKET;
+//     }
     
-    // If not a static asset, use Hono
-    return app.fetch(request, env, ctx)
-  }
-}
+//     // Let Hono handle all requests
+//     return app.fetch(request, env, ctx);
+//   }
+// }
+
+export default app;
 
 // Helper function to determine content type
-function getContentType(path: string): string {
-  const ext = path.split('.').pop()?.toLowerCase() || ''
-  const contentTypes: Record<string, string> = {
-    'html': 'text/html',
-    'css': 'text/css',
-    'js': 'text/javascript',
-    'json': 'application/json',
-    'png': 'image/png',
-    'jpg': 'image/jpeg',
-    'jpeg': 'image/jpeg',
-    'svg': 'image/svg+xml',
-    'ico': 'image/x-icon'
-  }
-  return contentTypes[ext] || 'text/plain'
-}
+// function getContentType(path: string): string {
+//   const ext = path.split('.').pop()?.toLowerCase() || ''
+//   const contentTypes: Record<string, string> = {
+//     'html': 'text/html',
+//     'css': 'text/css',
+//     'js': 'text/javascript',
+//     'json': 'application/json',
+//     'png': 'image/png',
+//     'jpg': 'image/jpeg',
+//     'jpeg': 'image/jpeg',
+//     'svg': 'image/svg+xml',
+//     'ico': 'image/x-icon'
+//   }
+//   return contentTypes[ext] || 'text/plain'
+// }
