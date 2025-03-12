@@ -2,6 +2,7 @@
   "name": "backend",
   "scripts": {
     "dev": "wrangler dev",
+    "dev:local": "NODE_ENV=development nodemon --watch src --watch public --ext ts,json,html --exec ts-node src/index.ts",
     "deploy": "wrangler deploy --minify"
   },
   "dependencies": {
@@ -9,6 +10,11 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20250214.0",
+    "@hono/node-server": "^1.13.8",
+    "@miniflare/r2": "^2.14.4",
+    "@miniflare/storage-memory": "^2.14.4",
+    "nodemon": "^3.1.9",
+    "ts-node": "^10.9.1",
     "wrangler": "^3.109.2"
   }
 }

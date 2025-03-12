@@ -13,8 +13,6 @@ This is a simple online service, where you can upload, edit and share .csv files
 - Vue.js
 - Tailwind CSS
 - Vite
-- Vuetify
-- VeeValidate
 - Hono
 - Cloudflare R2
 - Cloudflare Page

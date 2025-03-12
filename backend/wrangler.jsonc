@@ -1,8 +1,19 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "backend",
+  "name": "csv-manager",
   "main": "src/index.ts",
-  "compatibility_date": "2025-03-12"
+  "compatibility_date": "2025-03-12",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    {
+      "binding": "CSV_BUCKET",
+      "bucket_name": "csv-files",
+      "preview_bucket_name": "csv-files-dev"
+    }
+  ],
+  "site": {
+    "bucket": "./public/static"
+  }
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],
@@ -13,12 +24,6 @@
   //   {
   //     "binding": "MY_KV_NAMESPACE",
   //     "id": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-  //   }
-  // ],
-  // "r2_buckets": [
-  //   {
-  //     "binding": "MY_BUCKET",
-  //     "bucket_name": "my-bucket"
   //   }
   // ],
   // "d1_databases": [
