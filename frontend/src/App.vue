@@ -5,11 +5,13 @@ import CsvUploader from './components/CsvUploader.vue'
 import CsvVerifier from './components/CsvVerifier.vue'
 import CsvUpdater from './components/CsvUpdater.vue'
 import CsvDownloader from './components/CsvDownloader.vue'
+import CsvViewer from './components/CsvViewer.vue'
 
 const lastUploadedFile = ref(null)
 const lastVerifiedFile = ref(null)
 const lastUpdatedFile = ref(null)
 const activeTab = ref('upload')
+const selectedFileForViewing = ref(null)
 
 const handleFileUploaded = (result) => {
   lastUploadedFile.value = result
@@ -32,6 +34,14 @@ const openFile = (fileUrl) => {
   }
 }
 
+// Open file in viewer
+const openFileInViewer = (fileUrl) => {
+  if (fileUrl) {
+    selectedFileForViewing.value = fileUrl
+    activeTab.value = 'viewer'
+  }
+}
+
 const showAdvancedFeatures = computed(() => {
   return activeTab.value === 'advanced'
 })
@@ -49,6 +59,7 @@ const showAdvancedFeatures = computed(() => {
         <v-tabs v-model="activeTab">
           <v-tab value="upload">Home</v-tab>
           <v-tab value="advanced">Advanced Tools</v-tab>
+          <v-tab value="viewer" :disabled="!selectedFileForViewing">CSV Viewer</v-tab>
           <v-tab value="about">About</v-tab>
         </v-tabs>
         <v-spacer></v-spacer>
@@ -144,12 +155,23 @@ const showAdvancedFeatures = computed(() => {
                         <code>{{ lastUploadedFile.fileUrl }}</code>
                       </v-list-item-subtitle>
                       <template v-slot:append>
-                        <v-btn
-                          icon="mdi-download"
-                          variant="text"
-                          size="small"
-                          @click="openFile(lastUploadedFile.fileUrl)"
-                        ></v-btn>
+                        <div class="d-flex">
+                          <v-btn
+                            icon="mdi-table-eye"
+                            variant="text"
+                            size="small"
+                            class="mr-2"
+                            @click="openFileInViewer(lastUploadedFile.fileUrl)"
+                            title="View in CSV Viewer"
+                          ></v-btn>
+                          <v-btn
+                            icon="mdi-download"
+                            variant="text"
+                            size="small"
+                            @click="openFile(lastUploadedFile.fileUrl)"
+                            title="Download"
+                          ></v-btn>
+                        </div>
                       </template>
                     </v-list-item>
                     
@@ -162,12 +184,23 @@ const showAdvancedFeatures = computed(() => {
                         <code>{{ lastVerifiedFile.fileUrl }}</code>
                       </v-list-item-subtitle>
                       <template v-slot:append>
-                        <v-btn
-                          icon="mdi-download"
-                          variant="text"
-                          size="small"
-                          @click="openFile(lastVerifiedFile.fileUrl)"
-                        ></v-btn>
+                        <div class="d-flex">
+                          <v-btn
+                            icon="mdi-table-eye"
+                            variant="text"
+                            size="small"
+                            class="mr-2"
+                            @click="openFileInViewer(lastVerifiedFile.fileUrl)"
+                            title="View in CSV Viewer"
+                          ></v-btn>
+                          <v-btn
+                            icon="mdi-download"
+                            variant="text"
+                            size="small"
+                            @click="openFile(lastVerifiedFile.fileUrl)"
+                            title="Download"
+                          ></v-btn>
+                        </div>
                       </template>
                     </v-list-item>
                     
@@ -180,17 +213,50 @@ const showAdvancedFeatures = computed(() => {
                         <code>{{ lastUpdatedFile.fileUrl }}</code>
                       </v-list-item-subtitle>
                       <template v-slot:append>
-                        <v-btn
-                          icon="mdi-download"
-                          variant="text"
-                          size="small"
-                          @click="openFile(lastUpdatedFile.fileUrl)"
-                        ></v-btn>
+                        <div class="d-flex">
+                          <v-btn
+                            icon="mdi-table-eye"
+                            variant="text"
+                            size="small"
+                            class="mr-2"
+                            @click="openFileInViewer(lastUpdatedFile.fileUrl)"
+                            title="View in CSV Viewer"
+                          ></v-btn>
+                          <v-btn
+                            icon="mdi-download"
+                            variant="text"
+                            size="small"
+                            @click="openFile(lastUpdatedFile.fileUrl)"
+                            title="Download"
+                          ></v-btn>
+                        </div>
                       </template>
                     </v-list-item>
                   </v-list>
                 </v-card-text>
               </v-card>
+            </div>
+          </v-container>
+        </v-window-item>
+        
+        <!-- CSV Viewer Tab -->
+        <v-window-item value="viewer">
+          <v-container class="py-8 app-container">
+            <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
+            
+            <div v-if="selectedFileForViewing">
+              <CsvViewer 
+                :fileUrl="selectedFileForViewing" 
+                @file-updated="handleFileUpdated"
+              />
+            </div>
+            
+            <div v-else class="text-center py-8">
+              <v-icon icon="mdi-file-search" size="x-large" color="grey" class="mb-4"></v-icon>
+              <h3 class="text-h6 mb-2">No File Selected</h3>
+              <p class="text-body-1">
+                Please select a file to view from the Recent Activity section.
+              </p>
             </div>
           </v-container>
         </v-window-item>
@@ -245,6 +311,18 @@ const showAdvancedFeatures = computed(() => {
               <v-timeline-item dot-color="primary">
                 <template v-slot:opposite>
                   <span class="text-caption">Step 3</span>
+                </template>
+                <v-card>
+                  <v-card-title class="text-h6">View and Edit</v-card-title>
+                  <v-card-text>
+                    Use the CSV Viewer to view and edit your CSV files directly in the browser.
+                  </v-card-text>
+                </v-card>
+              </v-timeline-item>
+              
+              <v-timeline-item dot-color="primary">
+                <template v-slot:opposite>
+                  <span class="text-caption">Step 4</span>
                 </template>
                 <v-card>
                   <v-card-title class="text-h6">Update if Needed</v-card-title>

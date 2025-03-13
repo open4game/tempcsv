@@ -7,6 +7,7 @@ const uploading = ref(false)
 const uploadResult = ref(null)
 const errorMessage = ref('')
 const dragActive = ref(false)
+const copySuccess = ref(false)
 
 const emit = defineEmits(['file-uploaded'])
 
@@ -61,6 +62,50 @@ const uploadFile = async () => {
   } finally {
     uploading.value = false
   }
+}
+
+// Copy URL to clipboard
+const copyToClipboard = async () => {
+  try {
+    if (uploadResult.value && uploadResult.value.fileUrl) {
+      await navigator.clipboard.writeText(uploadResult.value.fileUrl)
+      copySuccess.value = true
+      setTimeout(() => {
+        copySuccess.value = false
+      }, 2000)
+    }
+  } catch (err) {
+    console.error('Failed to copy URL to clipboard:', err)
+    // Fallback method for browsers that don't support clipboard API
+    const textArea = document.createElement('textarea')
+    textArea.value = uploadResult.value.fileUrl
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    copySuccess.value = true
+    setTimeout(() => {
+      copySuccess.value = false
+    }, 2000)
+  }
+}
+
+// Open file in new window
+const openFileInNewWindow = () => {
+  if (uploadResult.value && uploadResult.value.fileUrl) {
+    const newWindow = window.open()
+    if (newWindow) {
+      newWindow.location.href = uploadResult.value.fileUrl
+    } else {
+      alert('Pop-up blocked. Please allow pop-ups for this site to download the file.')
+    }
+  }
+}
+
+// Reset uploader to upload another file
+const resetUploader = () => {
+  uploadResult.value = null
+  file.value = null
 }
 
 // Drag and drop handlers
@@ -152,8 +197,11 @@ const onDrop = (e) => {
             icon="mdi-content-copy"
             variant="text"
             size="small"
-            @click="navigator.clipboard.writeText(uploadResult.fileUrl)"
-          ></v-btn>
+            @click="copyToClipboard"
+            :color="copySuccess ? 'success' : ''"
+          >
+            <v-icon>{{ copySuccess ? 'mdi-check' : 'mdi-content-copy' }}</v-icon>
+          </v-btn>
         </div>
       </v-card>
       
@@ -161,7 +209,7 @@ const onDrop = (e) => {
         <v-btn
           color="primary"
           variant="outlined"
-          @click="uploadResult = null"
+          @click="resetUploader"
           class="flex-grow-1"
         >
           Upload Another
@@ -169,7 +217,7 @@ const onDrop = (e) => {
         
         <v-btn
           color="primary"
-          @click="window.open(uploadResult.fileUrl, '_blank')"
+          @click="openFileInNewWindow"
           class="flex-grow-1"
         >
           <v-icon start icon="mdi-download"></v-icon>
