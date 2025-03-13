@@ -16,12 +16,16 @@ const app = new Hono<{ Bindings: Env }>()
 
 // Add CORS middleware
 app.use('*', cors({
-  origin: ['http://localhost:5173', 'https://csv-manager.zhangzhibin.workers.dev'],
+  origin: [
+    'http://localhost:5173', 
+    'https://csv-manager.zhangzhibin.workers.dev', 
+    'https://yourdomain.com',
+    'https://anotherdomain.com'
+  ],
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   exposeHeaders: ['Content-Length', 'Content-Type'],
-  maxAge: 86400,
-  credentials: true
+  maxAge: 86400
 }))
 
 // Initialize bucket variable that will be set appropriately
