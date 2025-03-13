@@ -15,8 +15,8 @@ const selectedFileForViewing = ref(null)
 
 const handleFileUploaded = (result) => {
   lastUploadedFile.value = result
-  // Automatically switch to the advanced tab after upload
-  activeTab.value = 'advanced'
+  // Don't automatically switch to advanced tab anymore
+  // This allows the user to choose whether to view the file or go to advanced tools
 }
 
 const handleFileVerified = (result) => {
@@ -82,13 +82,15 @@ const showAdvancedFeatures = computed(() => {
                 
                 <!-- Main Upload Area -->
                 <v-sheet 
-                  class="pa-8 mb-8 rounded-lg mx-auto" 
+                  class="pa-8 mb-8 rounded-lg mx-auto csv-uploader-container" 
                   color="primary-lighten-5"
                   border
-                  style="max-width: 800px;"
                 >
                   <h2 class="text-h5 mb-4">Upload your CSV file</h2>
-                  <CsvUploader @file-uploaded="handleFileUploaded" />
+                  <CsvUploader 
+                    @file-uploaded="handleFileUploaded" 
+                    @view-file="openFileInViewer"
+                  />
                 </v-sheet>
                 
                 <!-- Features Section -->
@@ -125,15 +127,15 @@ const showAdvancedFeatures = computed(() => {
           <v-container class="py-8 app-container">
             <h2 class="text-h4 mb-6">Advanced Tools</h2>
             
-            <div class="tool-section">
+            <div class="tool-section csv-verifier-container">
               <CsvVerifier @file-verified="handleFileVerified" />
             </div>
             
-            <div class="tool-section">
+            <div class="tool-section csv-updater-container">
               <CsvUpdater @file-updated="handleFileUpdated" />
             </div>
             
-            <div class="tool-section">
+            <div class="tool-section csv-downloader-container">
               <CsvDownloader />
             </div>
             
@@ -244,7 +246,7 @@ const showAdvancedFeatures = computed(() => {
           <v-container class="py-8 app-container">
             <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
             
-            <div v-if="selectedFileForViewing">
+            <div v-if="selectedFileForViewing" class="csv-viewer-container">
               <CsvViewer 
                 :fileUrl="selectedFileForViewing" 
                 @file-updated="handleFileUpdated"
@@ -378,10 +380,11 @@ code {
 }
 
 .app-container {
-  max-width: 800px !important;
+  max-width: 1200px !important;
   margin: 0 auto;
   padding-left: 16px;
   padding-right: 16px;
+  width: 100%;
 }
 
 .tool-section {
@@ -396,12 +399,28 @@ code {
 
 .feature-box {
   max-width: 300px;
+  width: 100%;
 }
 
 /* Override Vuetify's grid system for all breakpoints */
 .v-col {
   flex-basis: 100% !important;
   max-width: 100% !important;
+}
+
+/* Ensure main components take full width */
+.csv-viewer-container,
+.csv-uploader-container,
+.csv-verifier-container,
+.csv-updater-container,
+.csv-downloader-container {
+  width: 100%;
+}
+
+/* Remove max-width constraint from main upload area */
+.v-sheet.pa-8.mb-8.rounded-lg.mx-auto {
+  max-width: none !important;
+  width: 100%;
 }
 
 @media (max-width: 600px) {

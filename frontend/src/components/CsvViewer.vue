@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { VueGoodTable } from 'vue-good-table-next'
 import 'vue-good-table-next/dist/vue-good-table-next.css'
 import { API_BASE_URL } from '../config'
@@ -21,6 +21,7 @@ const editedData = ref(null)
 const saving = ref(false)
 const saveSuccess = ref(false)
 const saveError = ref(null)
+const copySuccess = ref(false)
 
 // Table options
 const tableOptions = ref({
@@ -228,22 +229,79 @@ const hasUnsavedChanges = () => {
   return !!editedData.value
 }
 
+// Copy URL to clipboard
+const copyFileUrl = async () => {
+  try {
+    if (props.fileUrl) {
+      await navigator.clipboard.writeText(props.fileUrl)
+      copySuccess.value = true
+      setTimeout(() => {
+        copySuccess.value = false
+      }, 2000)
+    }
+  } catch (err) {
+    console.error('Failed to copy URL to clipboard:', err)
+    // Fallback method for browsers that don't support clipboard API
+    const textArea = document.createElement('textarea')
+    textArea.value = props.fileUrl
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    copySuccess.value = true
+    setTimeout(() => {
+      copySuccess.value = false
+    }, 2000)
+  }
+}
+
 // Initialize component
 onMounted(() => {
   if (props.fileUrl) {
     loadCSVData()
   }
 })
+
+// Watch for changes to the fileUrl prop
+watch(() => props.fileUrl, (newUrl, oldUrl) => {
+  if (newUrl && newUrl !== oldUrl) {
+    // Reset state
+    editedData.value = null
+    saveSuccess.value = false
+    saveError.value = null
+    
+    // Load new data
+    loadCSVData()
+  }
+}, { immediate: false })
 </script>
 
 <template>
-  <v-card>
+  <v-card width="100%">
     <v-card-title class="text-h5">
       <v-icon start icon="mdi-table-edit" class="mr-2"></v-icon>
       CSV Viewer & Editor
     </v-card-title>
     
     <v-card-text>
+      <!-- Display current file URL -->
+      <v-card variant="outlined" class="mb-4 pa-2" v-if="props.fileUrl">
+        <div class="d-flex align-center">
+          <v-icon icon="mdi-link-variant" color="primary" class="mr-2"></v-icon>
+          <div class="text-subtitle-2 mr-2">Current File:</div>
+          <code class="flex-grow-1 url-code">{{ props.fileUrl }}</code>
+          <v-btn
+            icon="mdi-content-copy"
+            variant="text"
+            size="small"
+            @click="copyFileUrl"
+            :color="copySuccess ? 'success' : ''"
+          >
+            <v-icon>{{ copySuccess ? 'mdi-check' : 'mdi-content-copy' }}</v-icon>
+          </v-btn>
+        </div>
+      </v-card>
+      
       <div v-if="loading" class="text-center py-4">
         <v-progress-circular indeterminate color="primary"></v-progress-circular>
         <div class="mt-2">Loading CSV data...</div>
@@ -358,10 +416,18 @@ onMounted(() => {
   margin-bottom: 10px;
 }
 
+.url-code {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.875rem;
+}
+
 /* Custom styles for the table */
 :deep(.vgt-table) {
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 4px;
+  width: 100%;
 }
 
 :deep(.vgt-table th) {

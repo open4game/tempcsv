@@ -9,7 +9,7 @@ const errorMessage = ref('')
 const dragActive = ref(false)
 const copySuccess = ref(false)
 
-const emit = defineEmits(['file-uploaded'])
+const emit = defineEmits(['file-uploaded', 'view-file'])
 
 const handleFileChange = (e) => {
   const selectedFile = e.target.files[0]
@@ -99,6 +99,13 @@ const openFileInNewWindow = () => {
     } else {
       alert('Pop-up blocked. Please allow pop-ups for this site to download the file.')
     }
+  }
+}
+
+// View file in CSV Viewer
+const viewFile = () => {
+  if (uploadResult.value && uploadResult.value.fileUrl) {
+    emit('view-file', uploadResult.value.fileUrl)
   }
 }
 
@@ -205,20 +212,31 @@ const onDrop = (e) => {
         </div>
       </v-card>
       
-      <div class="d-flex gap-2">
+      <div class="action-buttons">
         <v-btn
           color="primary"
           variant="outlined"
           @click="resetUploader"
-          class="flex-grow-1"
+          class="action-button"
         >
+          <v-icon start icon="mdi-upload"></v-icon>
           Upload Another
+        </v-btn>
+        
+        <v-btn
+          color="info"
+          variant="outlined"
+          @click="viewFile"
+          class="action-button"
+        >
+          <v-icon start icon="mdi-table-eye"></v-icon>
+          View
         </v-btn>
         
         <v-btn
           color="primary"
           @click="openFileInNewWindow"
-          class="flex-grow-1"
+          class="action-button"
         >
           <v-icon start icon="mdi-download"></v-icon>
           Download
@@ -258,6 +276,18 @@ const onDrop = (e) => {
   white-space: nowrap;
 }
 
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.action-button {
+  flex: 1;
+  min-width: 120px;
+}
+
 @media (max-width: 600px) {
   .upload-container {
     padding: 1.5rem;
@@ -265,6 +295,14 @@ const onDrop = (e) => {
   
   .upload-area, .success-area {
     max-width: 100%;
+  }
+  
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .action-button {
+    width: 100%;
   }
 }
 </style> 
