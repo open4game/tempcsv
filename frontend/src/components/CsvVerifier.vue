@@ -21,7 +21,6 @@ const verifyFile = async () => {
   try {
     const response = await fetch(`${API_BASE_URL}/save`, {
       method: 'POST',
-      credentials: 'include',
       headers: {
         'Content-Type': 'application/json'
       },

@@ -42,7 +42,6 @@ const updateFile = async () => {
     
     const response = await fetch(`${API_BASE_URL}/update`, {
       method: 'POST',
-      credentials: 'include',
       body: formData
     })
     
