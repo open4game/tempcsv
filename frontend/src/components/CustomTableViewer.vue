@@ -467,17 +467,30 @@ onBeforeUnmount(() => {
                 </v-chip>
               </div>
               
-              <v-btn
-                v-if="rows.length > 10"
-                color="info"
-                variant="text"
-                size="small"
-                @click="toggleMinimapDebug"
-                class="ml-auto"
-              >
-                <v-icon start>{{ enableMinimapDebug ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
-                {{ enableMinimapDebug ? 'Disable Debug' : 'Enable Debug' }}
-              </v-btn>
+              <div class="d-flex align-center">
+                <v-btn
+                  v-if="(hasHorizontalOverflow || hasVerticalOverflow) && scrollableElement"
+                  color="primary"
+                  variant="text"
+                  size="small"
+                  @click="toggleMinimap"
+                  class="mr-2"
+                >
+                  <v-icon start>mdi-map</v-icon>
+                  {{ showMinimap ? 'Hide Minimap' : 'Show Minimap' }}
+                </v-btn>
+                
+                <v-btn
+                  v-if="rows.length > 10"
+                  color="info"
+                  variant="text"
+                  size="small"
+                  @click="toggleMinimapDebug"
+                >
+                  <v-icon start>{{ enableMinimapDebug ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
+                  {{ enableMinimapDebug ? 'Disable Debug' : 'Enable Debug' }}
+                </v-btn>
+              </div>
             </div>
             
             <!-- Custom Table Implementation -->
@@ -526,16 +539,16 @@ onBeforeUnmount(() => {
               </table>
             </div>
             
-            <!-- Scroll indicators -->
-            <div class="scroll-indicator horizontal" v-if="hasHorizontalOverflow">
-              <v-icon icon="mdi-gesture-swipe-horizontal" size="small" class="mr-1"></v-icon>
-              <span class="text-caption">Scroll horizontally to see more columns</span>
-            </div>
-            
-            <div class="scroll-indicator vertical" v-if="hasVerticalOverflow">
-              <v-icon icon="mdi-gesture-swipe-vertical" size="small" class="mr-1"></v-icon>
-              <span class="text-caption">Scroll vertically to see more rows</span>
-            </div>
+            <!-- Integrated Table Minimap Component -->
+            <TableMinimap
+              ref="minimapRef"
+              :scrollable-element="scrollableElement"
+              :rows="rows"
+              :columns="columns"
+              :visible="showMinimap"
+              :debug="enableMinimapDebug"
+              @update:visible="showMinimap = $event"
+            />
           </div>
         </div>
       </v-card-text>
@@ -584,33 +597,6 @@ onBeforeUnmount(() => {
         </v-btn>
       </v-card-actions>
     </v-card>
-    
-    <!-- Table Minimap Component -->
-    <TableMinimap
-      ref="minimapRef"
-      :scrollable-element="scrollableElement"
-      :rows="rows"
-      :columns="columns"
-      :visible="showMinimap"
-      :debug="enableMinimapDebug"
-      @update:visible="showMinimap = $event"
-    />
-    
-    <!-- Minimap toggle button -->
-    <v-btn
-      v-if="(hasHorizontalOverflow || hasVerticalOverflow) && scrollableElement"
-      icon="mdi-map"
-      color="primary"
-      size="large"
-      fab
-      elevation="4"
-      class="minimap-toggle-btn"
-      @click="toggleMinimap"
-    >
-      <v-tooltip activator="parent" location="left">
-        Table Navigation Map
-      </v-tooltip>
-    </v-btn>
   </div>
 </template>
 
@@ -696,23 +682,6 @@ tr:nth-child(even) {
   font-size: 0.875rem;
 }
 
-.scroll-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-top: 8px;
-  color: rgba(0, 0, 0, 0.6);
-  font-size: 0.75rem;
-  padding: 4px;
-  background-color: rgba(0, 0, 0, 0.03);
-  border-radius: 4px;
-}
-
-.scroll-indicator.vertical {
-  margin-top: 0;
-  margin-bottom: 8px;
-}
-
 /* Add shadow indicators for horizontal scrolling when content overflows */
 .table-container.has-horizontal-overflow .scrollable-table:before,
 .table-container.has-horizontal-overflow .scrollable-table:after {
@@ -755,14 +724,6 @@ tr:nth-child(even) {
 .table-container.has-vertical-overflow .scrollable-table:after {
   bottom: 0;
   background: linear-gradient(to top, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
-}
-
-/* Minimap toggle button */
-.minimap-toggle-btn {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  z-index: 9998;
 }
 </style>
 
