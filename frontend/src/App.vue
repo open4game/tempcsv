@@ -89,7 +89,7 @@ const showAdvancedFeatures = computed(() => {
     <v-app-bar color="primary" elevation="2">
       <v-container class="d-flex align-center py-0 app-container">
         <v-app-bar-title class="text-h5 font-weight-bold">
-          CSV Manager
+          Temp CSV
         </v-app-bar-title>
         <v-spacer></v-spacer>
         <v-tabs v-model="activeTab">
@@ -110,7 +110,7 @@ const showAdvancedFeatures = computed(() => {
           <v-container class="py-10 app-container">
             <v-row justify="center">
               <v-col cols="12" class="text-center">
-                <h1 class="text-h3 font-weight-bold mb-6">CSV File Manager</h1>
+                <h1 class="text-h3 font-weight-bold mb-6">Temp CSV Online</h1>
                 <p class="text-body-1 mb-8 mx-auto" style="max-width: 800px;">
                   Upload, verify, update, and download CSV files stored in Cloudflare R2.
                   Your files are securely stored and easily accessible whenever you need them.

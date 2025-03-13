@@ -8,10 +8,6 @@ import * as directives from 'vuetify/directives'
 import 'vuetify/styles'
 import App from './App.vue'
 
-// Import Vue Good Table
-import VueGoodTablePlugin from 'vue-good-table-next'
-import 'vue-good-table-next/dist/vue-good-table-next.css'
-
 const vuetify = createVuetify({
   components,
   directives,
@@ -36,5 +32,4 @@ const vuetify = createVuetify({
 
 const app = createApp(App)
 app.use(vuetify)
-app.use(VueGoodTablePlugin)
 app.mount('#app')
