@@ -11,6 +11,7 @@ const tableHeight = ref(400)
 const tableWidth = ref('100%')
 const rowCount = ref(100)
 const colCount = ref(20)
+const enableDebug = ref(false)
 
 // Generate test data
 const generateData = () => {
@@ -66,6 +67,11 @@ const handleScroll = (event) => {
 
 // Reference to the minimap component
 const minimapRef = ref(null)
+
+// Toggle debug mode
+const toggleDebug = () => {
+  enableDebug.value = !enableDebug.value
+}
 
 // Initialize
 onMounted(() => {
@@ -124,11 +130,20 @@ onMounted(() => {
           ></v-select>
         </div>
         
-        <v-switch
-          v-model="showMinimap"
-          label="Show Minimap"
-          color="primary"
-        ></v-switch>
+        <div class="d-flex align-center mb-4">
+          <v-switch
+            v-model="showMinimap"
+            label="Show Minimap"
+            color="primary"
+            class="mr-4"
+          ></v-switch>
+          
+          <v-switch
+            v-model="enableDebug"
+            label="Debug Mode"
+            color="warning"
+          ></v-switch>
+        </div>
         
         <div class="d-flex gap-2">
           <v-btn color="primary" @click="regenerateData">
@@ -190,6 +205,7 @@ onMounted(() => {
       :rows="rows"
       :columns="columns"
       :visible="showMinimap"
+      :debug="enableDebug"
       @update:visible="showMinimap = $event"
     />
   </div>

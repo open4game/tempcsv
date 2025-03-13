@@ -5,7 +5,7 @@ import CsvUploader from './components/CsvUploader.vue'
 import CsvVerifier from './components/CsvVerifier.vue'
 import CsvUpdater from './components/CsvUpdater.vue'
 import CsvDownloader from './components/CsvDownloader.vue'
-import CsvViewer from './components/CsvViewer.vue'
+import CustomTableViewer from './components/CustomTableViewer.vue'
 import MinimapTest from './views/MinimapTest.vue'
 
 const lastUploadedFile = ref(null)
@@ -249,7 +249,7 @@ const showAdvancedFeatures = computed(() => {
             <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
             
             <div v-if="selectedFileForViewing" class="csv-viewer-container">
-              <CsvViewer 
+              <CustomTableViewer 
                 :fileUrl="selectedFileForViewing" 
                 @file-updated="handleFileUpdated"
               />

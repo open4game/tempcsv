@@ -5,7 +5,8 @@ const props = defineProps({
   // The scrollable element that contains the table
   scrollableElement: {
     type: Object,
-    required: true
+    required: false,
+    default: null
   },
   // Table data
   rows: {
@@ -19,6 +20,11 @@ const props = defineProps({
   },
   // Whether the minimap is visible
   visible: {
+    type: Boolean,
+    default: false
+  },
+  // Debug mode
+  debug: {
     type: Boolean,
     default: false
   }
@@ -48,9 +54,38 @@ const visibleColumns = ref(0)
 const currentRowIndex = ref(0)
 const currentColIndex = ref(0)
 
+// Debug information
+const debugInfo = ref({
+  tableScrollHeight: 0,
+  tableScrollWidth: 0,
+  tableClientHeight: 0,
+  tableClientWidth: 0,
+  avgRowHeight: 0,
+  avgColWidth: 0,
+  rowCount: 0,
+  colCount: 0,
+  visibleRows: 0,
+  visibleCols: 0,
+  scaleX: 0,
+  scaleY: 0
+})
+
 // Update minimap viewport position based on scroll position
 const updateMinimapViewport = () => {
-  if (!minimapViewport.value || !minimapContent.value || !props.scrollableElement) return
+  if (!minimapViewport.value || !minimapContent.value || !props.scrollableElement) {
+    // If scrollableElement is null, just update the minimap rows
+    if (minimapViewport.value && minimapContent.value) {
+      // Set default viewport size
+      minimapViewport.value.style.width = `${minimapContent.value.clientWidth}px`
+      minimapViewport.value.style.height = `${minimapContent.value.clientHeight}px`
+      minimapViewport.value.style.left = '0px'
+      minimapViewport.value.style.top = '0px'
+      
+      // Update the minimap rows
+      updateMinimapRows()
+    }
+    return
+  }
   
   const table = props.scrollableElement
   const minimap = minimapContent.value
@@ -60,26 +95,67 @@ const updateMinimapViewport = () => {
   tableScrollWidth.value = table.scrollWidth || 0
   
   // Calculate visible rows and columns
-  const rowHeight = tableScrollHeight.value > 0 && props.rows.length > 0 
-    ? tableScrollHeight.value / props.rows.length 
-    : 0
+  // For Vue Good Table, we need to handle the case where rows might have variable heights
+  // and the table might have pagination
+  
+  // Get the actual table element inside the scrollable container
+  const actualTable = table.querySelector('table') || table
+  
+  // Get all rows in the table
+  const tableRows = actualTable.querySelectorAll('tbody tr')
+  const tableHeaders = actualTable.querySelectorAll('thead th')
+  
+  // Calculate average row height if we have rows
+  let avgRowHeight = 0
+  if (tableRows.length > 0) {
+    const totalRowHeight = Array.from(tableRows).reduce((sum, row) => sum + row.offsetHeight, 0)
+    avgRowHeight = totalRowHeight / tableRows.length
+  } else if (props.rows.length > 0) {
+    // Fallback: estimate based on container height and number of rows
+    avgRowHeight = tableScrollHeight.value / props.rows.length
+  }
+  
+  // Calculate average column width if we have columns
+  let avgColWidth = 0
+  if (tableHeaders.length > 0) {
+    const totalColWidth = Array.from(tableHeaders).reduce((sum, col) => sum + col.offsetWidth, 0)
+    avgColWidth = totalColWidth / tableHeaders.length
+  } else if (props.columns.length > 0) {
+    // Fallback: estimate based on container width and number of columns
+    avgColWidth = tableScrollWidth.value / props.columns.length
+  }
+  
+  // Calculate visible rows and columns based on averages
+  visibleRows.value = avgRowHeight > 0 
+    ? Math.round(table.clientHeight / avgRowHeight) 
+    : Math.min(10, props.rows.length)
     
-  const colWidth = tableScrollWidth.value > 0 && props.columns.length > 0 
-    ? tableScrollWidth.value / props.columns.length 
-    : 0
-    
-  visibleRows.value = rowHeight > 0 
-    ? Math.round(table.clientHeight / rowHeight) 
-    : 0
-    
-  visibleColumns.value = colWidth > 0 
-    ? Math.round(table.clientWidth / colWidth) 
-    : 0
+  visibleColumns.value = avgColWidth > 0 
+    ? Math.round(table.clientWidth / avgColWidth) 
+    : Math.min(5, props.columns.length)
   
   // Calculate the scale between the minimap and the actual table
   minimapScale.value = {
     x: minimap.clientWidth / Math.max(1, tableScrollWidth.value),
     y: minimap.clientHeight / Math.max(1, tableScrollHeight.value)
+  }
+  
+  // Update debug info
+  if (props.debug) {
+    debugInfo.value = {
+      tableScrollHeight: tableScrollHeight.value,
+      tableScrollWidth: tableScrollWidth.value,
+      tableClientHeight: table.clientHeight,
+      tableClientWidth: table.clientWidth,
+      avgRowHeight,
+      avgColWidth,
+      rowCount: tableRows.length,
+      colCount: tableHeaders.length,
+      visibleRows: visibleRows.value,
+      visibleCols: visibleColumns.value,
+      scaleX: minimapScale.value.x,
+      scaleY: minimapScale.value.y
+    }
   }
   
   // Calculate viewport dimensions and position
@@ -116,8 +192,14 @@ const updateMinimapViewport = () => {
   
   // Calculate current row and column indices
   if (props.rows.length > 0 && props.columns.length > 0) {
-    // Avoid division by zero
-    if (tableScrollHeight.value > 0) {
+    // For row index, use the scroll position and average row height
+    if (avgRowHeight > 0) {
+      currentRowIndex.value = Math.min(
+        Math.floor(table.scrollTop / avgRowHeight),
+        props.rows.length - 1
+      )
+    } else if (tableScrollHeight.value > 0) {
+      // Fallback to the previous calculation
       currentRowIndex.value = Math.min(
         Math.floor(table.scrollTop / (tableScrollHeight.value / props.rows.length)),
         props.rows.length - 1
@@ -126,8 +208,14 @@ const updateMinimapViewport = () => {
       currentRowIndex.value = 0
     }
     
-    // Avoid division by zero
-    if (tableScrollWidth.value > 0) {
+    // For column index, use the scroll position and average column width
+    if (avgColWidth > 0) {
+      currentColIndex.value = Math.min(
+        Math.floor(table.scrollLeft / avgColWidth),
+        props.columns.length - 1
+      )
+    } else if (tableScrollWidth.value > 0) {
+      // Fallback to the previous calculation
       currentColIndex.value = Math.min(
         Math.floor(table.scrollLeft / (tableScrollWidth.value / props.columns.length)),
         props.columns.length - 1
@@ -169,7 +257,8 @@ const updateMinimapRows = () => {
         minimapTable.style.gridTemplateRows = `repeat(${maxRows}, 1fr)`
         
         // Adjust grid template columns based on data
-        minimapTable.style.gridTemplateColumns = `repeat(${props.columns.length}, 1fr)`
+        const colCount = Math.max(1, props.columns.length)
+        minimapTable.style.gridTemplateColumns = `repeat(${colCount}, 1fr)`
         
         // Add data-attributes to rows for better debugging
         const rowElements = minimapTable.querySelectorAll('.minimap-row')
@@ -188,6 +277,7 @@ const updateMinimapRows = () => {
   })
 }
 
+// Start dragging the minimap viewport
 const startMinimapDrag = (event) => {
   if (!props.scrollableElement) return
   
@@ -206,6 +296,7 @@ const startMinimapDrag = (event) => {
   document.addEventListener('mouseup', stopMinimapDrag)
 }
 
+// Start dragging the minimap viewport (touch events)
 const startMinimapTouchDrag = (event) => {
   if (!props.scrollableElement) return
   
@@ -222,8 +313,9 @@ const startMinimapTouchDrag = (event) => {
   document.addEventListener('touchend', stopMinimapDrag)
 }
 
+// Handle minimap dragging
 const onMinimapDrag = (event) => {
-  if (!isDraggingMinimap.value || !props.scrollableElement || !minimapContent.value) return
+  if (!isDraggingMinimap.value || !minimapContent.value || !props.scrollableElement) return
   
   // Get current position
   let clientX, clientY
@@ -261,6 +353,7 @@ const stopMinimapDrag = () => {
   document.removeEventListener('touchend', stopMinimapDrag)
 }
 
+// Zoom to fit the entire table in the viewport
 const zoomToFit = () => {
   if (!props.scrollableElement) return
   
@@ -276,7 +369,7 @@ const toggleMinimap = () => {
   emit('update:visible', !props.visible)
 }
 
-// Jump to specific position in the table
+// Jump to a position in the table when clicking on the minimap
 const jumpToPosition = (event) => {
   if (!props.scrollableElement || !minimapContent.value) return
   
@@ -299,25 +392,19 @@ const jumpToPosition = (event) => {
   updateMinimapViewport()
 }
 
-// Add a function to scroll to the top
+// Scroll to the top of the table
 const scrollToTop = () => {
   if (!props.scrollableElement) return
   
-  // Scroll to the top of the table
   props.scrollableElement.scrollTop = 0
-  
-  // Update minimap viewport
   updateMinimapViewport()
 }
 
-// Add a function to scroll to the bottom
+// Scroll to the bottom of the table
 const scrollToBottom = () => {
   if (!props.scrollableElement) return
   
-  // Scroll to the bottom of the table
   props.scrollableElement.scrollTop = props.scrollableElement.scrollHeight
-  
-  // Update minimap viewport
   updateMinimapViewport()
 }
 
@@ -347,29 +434,29 @@ watch(() => props.visible, (newValue) => {
 
 // Handle scroll events from the parent component
 const handleTableScroll = () => {
-  if (props.visible) {
-    updateMinimapViewport()
-    
-    // Update current row indicator
-    const prevRowIndex = currentRowIndex.value
-    
-    // If the row index changed, update the row indicators
-    if (prevRowIndex !== currentRowIndex.value) {
+  if (!props.scrollableElement || !props.visible) return
+  
+  updateMinimapViewport()
+  
+  // Update current row indicator
+  const prevRowIndex = currentRowIndex.value
+  
+  // If the row index changed, update the row indicators
+  if (prevRowIndex !== currentRowIndex.value) {
+    nextTick(() => {
       const minimapTable = minimapContent.value?.querySelector('.minimap-table')
       if (minimapTable) {
         const rowElements = minimapTable.querySelectorAll('.minimap-row')
         
-        // Remove highlight from previous row
-        if (prevRowIndex >= 0 && prevRowIndex < rowElements.length) {
-          rowElements[prevRowIndex].classList.remove('current-row')
-        }
+        // Remove current-row class from all rows
+        rowElements.forEach(row => row.classList.remove('current-row'))
         
-        // Add highlight to current row
+        // Add current-row class to the current row
         if (currentRowIndex.value >= 0 && currentRowIndex.value < rowElements.length) {
           rowElements[currentRowIndex.value].classList.add('current-row')
         }
       }
-    }
+    })
   }
 }
 
@@ -499,6 +586,35 @@ defineExpose({
         <div class="stats-item">
           <span class="stats-label">Current:</span>
           <span class="stats-value">Row {{ currentRowIndex + 1 }}, Col {{ currentColIndex + 1 }}</span>
+        </div>
+      </div>
+      
+      <!-- Debug information -->
+      <div class="debug-info" v-if="debug && visible">
+        <div class="debug-header">Debug Information</div>
+        <div class="debug-item">
+          <span class="debug-label">Table Scroll Size:</span>
+          <span class="debug-value">{{ debugInfo.tableScrollWidth }}×{{ debugInfo.tableScrollHeight }}px</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Table Client Size:</span>
+          <span class="debug-value">{{ debugInfo.tableClientWidth }}×{{ debugInfo.tableClientHeight }}px</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Row/Col Count:</span>
+          <span class="debug-value">{{ debugInfo.rowCount }} rows, {{ debugInfo.colCount }} cols</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Avg Row Height:</span>
+          <span class="debug-value">{{ debugInfo.avgRowHeight.toFixed(2) }}px</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Avg Col Width:</span>
+          <span class="debug-value">{{ debugInfo.avgColWidth.toFixed(2) }}px</span>
+        </div>
+        <div class="debug-item">
+          <span class="debug-label">Scale:</span>
+          <span class="debug-value">X: {{ debugInfo.scaleX.toFixed(4) }}, Y: {{ debugInfo.scaleY.toFixed(4) }}</span>
         </div>
       </div>
       
@@ -835,5 +951,39 @@ defineExpose({
 
 .zoom-btn {
   font-size: 11px;
+}
+
+/* Debug styles */
+.debug-info {
+  padding: 8px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: #fff3e0;
+  font-size: 10px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.debug-header {
+  font-weight: bold;
+  margin-bottom: 4px;
+  color: #e65100;
+}
+
+.debug-item {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.debug-label {
+  font-weight: 500;
+  color: #e65100;
+}
+
+.debug-value {
+  font-family: monospace;
+  background-color: rgba(0, 0, 0, 0.05);
+  padding: 1px 4px;
+  border-radius: 2px;
 }
 </style> 

@@ -49,6 +49,7 @@ const tableOptions = ref({
 // Table Minimap Navigation
 const showMinimap = ref(false)
 const minimapRef = ref(null)
+const enableMinimapDebug = ref(false) // Debug mode toggle
 
 // Handle cell edit
 const onCellChanged = (params) => {
@@ -274,6 +275,7 @@ const checkTableOverflow = () => {
   nextTick(() => {
     if (tableContainer.value) {
       const container = tableContainer.value
+      // The scrollable element in Vue Good Table is the .vgt-responsive div
       scrollableElement.value = container.querySelector('.vgt-responsive')
       
       if (scrollableElement.value) {
@@ -285,6 +287,11 @@ const checkTableOverflow = () => {
         if (hasHorizOverflow || hasVertOverflow) {
           updateScrollbarDimensions()
           updateScrollbarPosition()
+        }
+        
+        // If minimap is visible, update it
+        if (showMinimap.value && minimapRef.value) {
+          minimapRef.value.updateMinimapViewport()
         }
       }
     }
@@ -494,6 +501,13 @@ onMounted(() => {
   if (props.fileUrl) {
     loadCSVData().then(() => {
       checkTableOverflow()
+      
+      // Add a small delay to ensure the table is fully rendered
+      setTimeout(() => {
+        if (scrollableElement.value && minimapRef.value) {
+          minimapRef.value.updateMinimapViewport()
+        }
+      }, 500)
     })
   }
   
@@ -559,6 +573,13 @@ watch(() => props.fileUrl, (newUrl, oldUrl) => {
             
             // Check for overflow
             checkTableOverflow()
+            
+            // Add a small delay to ensure the table is fully rendered
+            setTimeout(() => {
+              if (minimapRef.value) {
+                minimapRef.value.updateMinimapViewport()
+              }
+            }, 500)
           }
         }
       })
@@ -629,6 +650,11 @@ const scrollToBottom = () => {
 // Toggle minimap visibility
 const toggleMinimap = () => {
   showMinimap.value = !showMinimap.value
+}
+
+// Toggle debug mode for minimap
+const toggleMinimapDebug = () => {
+  enableMinimapDebug.value = !enableMinimapDebug.value
 }
 </script>
 
@@ -760,6 +786,17 @@ const toggleMinimap = () => {
       </v-card-text>
       
       <v-card-actions>
+        <v-btn
+          v-if="rows.length > 10"
+          color="info"
+          variant="text"
+          size="small"
+          @click="toggleMinimapDebug"
+          class="mr-auto"
+        >
+          <v-icon start>{{ enableMinimapDebug ? 'mdi-bug-check' : 'mdi-bug' }}</v-icon>
+          {{ enableMinimapDebug ? 'Disable Minimap Debug' : 'Enable Minimap Debug' }}
+        </v-btn>
         <v-spacer></v-spacer>
         <v-btn
           v-if="hasUnsavedChanges()"
@@ -784,17 +821,19 @@ const toggleMinimap = () => {
     
     <!-- Replace the old minimap code with the new component -->
     <TableMinimap
+      v-if="scrollableElement"
       ref="minimapRef"
       :scrollable-element="scrollableElement"
       :rows="rows"
       :columns="columns"
       :visible="showMinimap"
+      :debug="enableMinimapDebug"
       @update:visible="showMinimap = $event"
     />
     
     <!-- Minimap toggle button (fixed position) -->
     <v-btn
-      v-if="hasHorizontalOverflow || rows.length > 10"
+      v-if="(hasHorizontalOverflow || rows.length > 10) && scrollableElement"
       icon="mdi-map"
       color="primary"
       size="large"
