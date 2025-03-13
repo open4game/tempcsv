@@ -615,6 +615,14 @@ onBeforeUnmount(() => {
   width: 100%;
 }
 
+/* Add styles for the integrated minimap */
+:deep(.table-minimap-container) {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  z-index: 100;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;

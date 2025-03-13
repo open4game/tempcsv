@@ -6,13 +6,14 @@ import CsvVerifier from './components/CsvVerifier.vue'
 import CsvUpdater from './components/CsvUpdater.vue'
 import CsvDownloader from './components/CsvDownloader.vue'
 import CustomTableViewer from './components/CustomTableViewer.vue'
-import MinimapTest from './views/MinimapTest.vue'
 
 const lastUploadedFile = ref(null)
 const lastVerifiedFile = ref(null)
 const lastUpdatedFile = ref(null)
 const activeTab = ref('upload')
 const selectedFileForViewing = ref(null)
+const fileUrlInput = ref('')
+const viewedFiles = ref([]) // History of viewed files
 
 const handleFileUploaded = (result) => {
   lastUploadedFile.value = result
@@ -38,8 +39,42 @@ const openFile = (fileUrl) => {
 // Open file in viewer
 const openFileInViewer = (fileUrl) => {
   if (fileUrl) {
+    addToViewHistory(fileUrl)
     selectedFileForViewing.value = fileUrl
     activeTab.value = 'viewer'
+  }
+}
+
+// Load file from URL input
+const loadFileFromUrl = () => {
+  if (fileUrlInput.value) {
+    addToViewHistory(fileUrlInput.value)
+    selectedFileForViewing.value = fileUrlInput.value
+    fileUrlInput.value = '' // Clear the input after loading
+  }
+}
+
+// Clear current file
+const clearCurrentFile = () => {
+  selectedFileForViewing.value = null
+}
+
+// Add file to view history
+const addToViewHistory = (fileUrl) => {
+  // Don't add duplicates
+  if (!viewedFiles.value.includes(fileUrl)) {
+    // Limit history to 5 most recent files
+    if (viewedFiles.value.length >= 5) {
+      viewedFiles.value.pop()
+    }
+    viewedFiles.value.unshift(fileUrl)
+  } else {
+    // Move to top if already exists
+    const index = viewedFiles.value.indexOf(fileUrl)
+    if (index > 0) {
+      viewedFiles.value.splice(index, 1)
+      viewedFiles.value.unshift(fileUrl)
+    }
   }
 }
 
@@ -59,9 +94,8 @@ const showAdvancedFeatures = computed(() => {
         <v-spacer></v-spacer>
         <v-tabs v-model="activeTab">
           <v-tab value="upload">Home</v-tab>
+          <v-tab value="viewer">CSV Viewer</v-tab>
           <v-tab value="advanced">Advanced Tools</v-tab>
-          <v-tab value="viewer" :disabled="!selectedFileForViewing">CSV Viewer</v-tab>
-          <v-tab value="minimap-test">Minimap Test</v-tab>
           <v-tab value="about">About</v-tab>
         </v-tabs>
         <v-spacer></v-spacer>
@@ -248,7 +282,74 @@ const showAdvancedFeatures = computed(() => {
           <v-container class="py-8 app-container">
             <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
             
+            <!-- File URL Input -->
+            <v-card class="mb-6">
+              <v-card-title>
+                <v-icon start icon="mdi-link-variant" class="mr-2"></v-icon>
+                Enter CSV File URL
+              </v-card-title>
+              <v-card-text>
+                <v-row>
+                  <v-col cols="12" md="9">
+                    <v-text-field
+                      v-model="fileUrlInput"
+                      label="Enter the URL of the CSV file you want to view"
+                      placeholder="https://example.com/files/your-file.csv"
+                      variant="outlined"
+                      hide-details
+                      @keyup.enter="loadFileFromUrl"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" md="3" class="d-flex align-center">
+                    <v-btn 
+                      color="primary" 
+                      block
+                      @click="loadFileFromUrl"
+                      :disabled="!fileUrlInput"
+                    >
+                      <v-icon start>mdi-eye</v-icon>
+                      View File
+                    </v-btn>
+                  </v-col>
+                </v-row>
+              </v-card-text>
+            </v-card>
+            
+            <!-- Recently Viewed Files -->
+            <v-card v-if="viewedFiles.length > 0" class="mb-6">
+              <v-card-title>
+                <v-icon start icon="mdi-history" class="mr-2"></v-icon>
+                Recently Viewed Files
+              </v-card-title>
+              <v-card-text>
+                <v-chip-group>
+                  <v-chip
+                    v-for="(file, index) in viewedFiles"
+                    :key="index"
+                    color="primary"
+                    variant="outlined"
+                    @click="openFileInViewer(file)"
+                    class="mr-2 mb-2"
+                  >
+                    <v-icon start size="small">mdi-file-document-outline</v-icon>
+                    {{ file.split('/').pop() }}
+                  </v-chip>
+                </v-chip-group>
+              </v-card-text>
+            </v-card>
+            
             <div v-if="selectedFileForViewing" class="csv-viewer-container">
+              <div class="d-flex justify-end mb-2">
+                <v-btn 
+                  color="error" 
+                  variant="text" 
+                  size="small"
+                  @click="clearCurrentFile"
+                >
+                  <v-icon start>mdi-close</v-icon>
+                  Close File
+                </v-btn>
+              </div>
               <CustomTableViewer 
                 :fileUrl="selectedFileForViewing" 
                 @file-updated="handleFileUpdated"
@@ -259,16 +360,9 @@ const showAdvancedFeatures = computed(() => {
               <v-icon icon="mdi-file-search" size="x-large" color="grey" class="mb-4"></v-icon>
               <h3 class="text-h6 mb-2">No File Selected</h3>
               <p class="text-body-1">
-                Please select a file to view from the Recent Activity section.
+                Please enter a CSV file URL above or select a file from the Recent Activity section.
               </p>
             </div>
-          </v-container>
-        </v-window-item>
-        
-        <!-- Minimap Test Tab -->
-        <v-window-item value="minimap-test">
-          <v-container class="py-6 app-container">
-            <MinimapTest />
           </v-container>
         </v-window-item>
         
