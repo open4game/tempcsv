@@ -6,6 +6,7 @@ import CsvVerifier from './components/CsvVerifier.vue'
 import CsvUpdater from './components/CsvUpdater.vue'
 import CsvDownloader from './components/CsvDownloader.vue'
 import CsvViewer from './components/CsvViewer.vue'
+import MinimapTest from './views/MinimapTest.vue'
 
 const lastUploadedFile = ref(null)
 const lastVerifiedFile = ref(null)
@@ -60,6 +61,7 @@ const showAdvancedFeatures = computed(() => {
           <v-tab value="upload">Home</v-tab>
           <v-tab value="advanced">Advanced Tools</v-tab>
           <v-tab value="viewer" :disabled="!selectedFileForViewing">CSV Viewer</v-tab>
+          <v-tab value="minimap-test">Minimap Test</v-tab>
           <v-tab value="about">About</v-tab>
         </v-tabs>
         <v-spacer></v-spacer>
@@ -260,6 +262,13 @@ const showAdvancedFeatures = computed(() => {
                 Please select a file to view from the Recent Activity section.
               </p>
             </div>
+          </v-container>
+        </v-window-item>
+        
+        <!-- Minimap Test Tab -->
+        <v-window-item value="minimap-test">
+          <v-container class="py-6 app-container">
+            <MinimapTest />
           </v-container>
         </v-window-item>
         
