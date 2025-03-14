@@ -767,6 +767,7 @@ th, td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  background-clip: padding-box; /* Prevent background color from bleeding under borders */
 }
 
 /* Corner cell styling */
@@ -777,8 +778,10 @@ th, td {
   position: sticky;
   top: 0;
   left: 0;
-  z-index: 4;
+  z-index: 10; /* Highest z-index to always be on top */
   text-align: center;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 2px rgba(0,0,0,0.1), 2px 0 2px rgba(0,0,0,0.1); /* Shadow for better visibility */
 }
 
 /* Column index styling */
@@ -789,7 +792,9 @@ th, td {
   text-align: center;
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 9; /* Second highest z-index */
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 2px rgba(0,0,0,0.1); /* Bottom shadow for better visibility */
 }
 
 /* Regular header styling */
@@ -797,42 +802,64 @@ thead tr:nth-child(2) th {
   background-color: #f5f5f5;
   position: sticky;
   top: 24px; /* Height of the column index row */
-  z-index: 2;
+  z-index: 8; /* Third highest z-index */
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 2px rgba(0,0,0,0.1); /* Bottom shadow for better visibility */
 }
 
 /* Row index header styling */
-.row-index-header, .row-index {
-  width: 50px;
-  min-width: 50px;
-  text-align: center;
+.row-index-header {
+  position: sticky;
+  top: 24px; /* Same as regular headers */
+  left: 0;
+  z-index: 9; /* Same as column index for proper layering */
   background-color: #f5f5f5;
-  font-weight: bold;
-  color: #666;
+  border: 1px solid #ddd;
+  box-shadow: 0 2px 2px rgba(0,0,0,0.1), 2px 0 2px rgba(0,0,0,0.1); /* Shadow for better visibility */
 }
 
+/* Row index styling */
 .row-index {
   position: sticky;
   left: 0;
-  z-index: 1;
+  z-index: 7; /* Lower than headers but higher than regular cells */
+  background-color: #f5f5f5;
+  width: 50px;
+  min-width: 50px;
+  text-align: center;
+  font-weight: bold;
+  color: #666;
+  border: 1px solid #ddd;
+  box-shadow: 2px 0 2px rgba(0,0,0,0.1); /* Right shadow for better visibility */
 }
 
 /* Make sure the first row of headers stays fixed */
 thead tr:first-child th {
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 9; /* Same as column index */
 }
 
 /* Make sure the second row of headers stays fixed below the first row */
 thead tr:nth-child(2) th {
   position: sticky;
   top: 24px; /* Height of the first header row */
-  z-index: 2;
+  z-index: 8;
 }
 
 /* Ensure the corner cell in the second row has higher z-index */
 thead tr:nth-child(2) th.row-index-header {
-  z-index: 3;
+  z-index: 9;
+}
+
+/* Ensure data cells have lower z-index than headers */
+tbody td {
+  z-index: 1;
+}
+
+/* Ensure selected/highlighted cells don't overlap headers */
+.selected-cell, .hovered-row td, .hovered-column, .edited-cell {
+  z-index: 1 !important; /* Force lower z-index for highlighted cells */
 }
 
 /* For tables with few rows, add empty rows */
@@ -843,18 +870,24 @@ thead tr:nth-child(2) th.row-index-header {
   color: transparent;
 }
 
-/* Row index column styling */
-.row-index {
+/* Row index column styling - remove duplicate */
+/* .row-index {
   position: sticky;
   left: 0;
   z-index: 1;
-}
+} */
 
 tr:nth-child(even) {
   background-color: #f9f9f9;
 }
 
 tr:nth-child(even) .row-index {
+  background-color: #eaeaea;
+}
+
+/* Fix for even rows with sticky elements */
+tr:nth-child(even) th, 
+tr:nth-child(even) .corner-cell {
   background-color: #eaeaea;
 }
 
@@ -868,27 +901,43 @@ tr:nth-child(even) .row-index {
 }
 
 /* Visual feedback for hovering */
-.hovered-row {
-  background-color: rgba(25, 118, 210, 0.05) !important;
+/* Modify row highlighting to not affect sticky elements */
+.hovered-row td:not(.row-index) {
+  background-color: #e8f0fe !important; /* Solid light blue instead of semi-transparent */
 }
 
-.hovered-column {
-  background-color: rgba(25, 118, 210, 0.05) !important;
+/* Ensure row indices maintain their background when row is hovered */
+.hovered-row .row-index {
+  background-color: #e0e0e0 !important;
 }
 
+/* Modify column highlighting to not affect sticky elements */
+tbody td.hovered-column {
+  background-color: #e8f0fe !important; /* Solid light blue instead of semi-transparent */
+}
+
+/* Ensure column headers maintain their background when column is hovered */
+thead th.hovered-column {
+  background-color: #d4d4d4 !important; /* Slightly darker than normal to show highlight */
+}
+
+/* Edited cell styling */
 .edited-cell {
-  background-color: rgba(76, 175, 80, 0.1) !important;
+  background-color: #e6f4ea !important; /* Solid light green instead of semi-transparent */
 }
 
+/* Selected cell styling */
 .selected-cell {
-  background-color: rgba(255, 193, 7, 0.2) !important;
+  background-color: #fff8e1 !important; /* Solid light yellow instead of semi-transparent */
   outline: 2px solid #FFC107;
 }
 
-.editable-cell:hover:not(.not-editable) {
-  background-color: rgba(25, 118, 210, 0.1);
+/* Hover effect for editable cells */
+.editable-cell:hover:not(.not-editable):not(.row-index) {
+  background-color: #e3f2fd !important; /* Solid light blue instead of semi-transparent */
 }
 
+/* Edit pencil icon */
 .editable-cell:hover:not(.not-editable)::after {
   content: '✏️';
   position: absolute;
@@ -897,6 +946,34 @@ tr:nth-child(even) .row-index {
   transform: translateY(-50%);
   font-size: 12px;
   opacity: 0.5;
+}
+
+/* Remove the general hover class that was affecting all cells */
+.hovered-column {
+  /* Remove the general style that was affecting all elements with this class */
+  /* background-color: rgba(25, 118, 210, 0.05) !important; */
+}
+
+/* Ensure sticky elements maintain their background colors */
+.corner-cell {
+  background-color: #e0e0e0 !important;
+}
+
+thead th.column-index {
+  background-color: #e0e0e0 !important;
+}
+
+thead th.row-index-header {
+  background-color: #f5f5f5 !important;
+}
+
+tbody td.row-index {
+  background-color: #f5f5f5 !important;
+}
+
+/* Special case for even rows */
+tr:nth-child(even) td.row-index {
+  background-color: #eaeaea !important;
 }
 
 .edit-cell-container {
