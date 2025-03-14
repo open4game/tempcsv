@@ -1,6 +1,9 @@
 <script setup>
 import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
 import TableMinimap from './TableMinimap.vue'
+import DirectCsvFetcher from './DirectCsvFetcher.vue'
+import CsvIframeViewer from './CsvIframeViewer.vue'
+import CsvDirectLink from './CsvDirectLink.vue'
 import { API_BASE_URL } from '../config'
 
 const props = defineProps({
@@ -34,33 +37,51 @@ const enableMinimapDebug = ref(false)
 const hasHorizontalOverflow = ref(false)
 const hasVerticalOverflow = ref(false)
 
-// Load CSV data
-const loadCSVData = async () => {
-  loading.value = true
-  error.value = null
-  
+// Add a flag to track if we should show the iframe viewer
+const showIframeViewer = ref(false)
+
+// Handle CSV data loaded from DirectCsvFetcher
+const handleCsvLoaded = (csvText) => {
   try {
-    // Fetch the CSV file
-    const response = await fetch(props.fileUrl)
-    if (!response.ok) {
-      throw new Error('Failed to fetch CSV file')
-    }
-    
-    const csvText = await response.text()
     const parsedData = parseCSV(csvText)
     
     // Set columns and rows
     columns.value = parsedData.columns
     rows.value = parsedData.rows
     
-    return true
+    loading.value = false
+    error.value = null
+    
+    // Check for overflow after data is loaded and DOM is updated
+    nextTick(() => {
+      // Make sure tableContainer is available before checking overflow
+      if (tableContainer.value) {
+        // Set scrollable element reference if not already set
+        if (!scrollableElement.value) {
+          scrollableElement.value = tableContainer.value.querySelector('.scrollable-table')
+          
+          // Add scroll event listener if not already added
+          if (scrollableElement.value) {
+            scrollableElement.value.addEventListener('scroll', handleTableScroll)
+          }
+        }
+        
+        checkTableOverflow()
+      }
+    })
   } catch (err) {
-    error.value = err.message
-    console.error('Error loading CSV:', err)
-    return false
-  } finally {
+    error.value = `Error parsing CSV: ${err.message}`
     loading.value = false
   }
+}
+
+// Handle error from DirectCsvFetcher
+const handleCsvError = (errorMessage) => {
+  error.value = errorMessage
+  loading.value = false
+  
+  // If we couldn't load the CSV data, show the iframe viewer as a last resort
+  showIframeViewer.value = true
 }
 
 // Parse CSV data
@@ -276,6 +297,10 @@ const checkTableOverflow = () => {
       if (showMinimap.value && minimapRef.value) {
         minimapRef.value.updateMinimapViewport()
       }
+    } else {
+      // Reset overflow flags if scrollable element is not available
+      hasHorizontalOverflow.value = false
+      hasVerticalOverflow.value = false
     }
   })
 }
@@ -330,23 +355,23 @@ watch(() => props.fileUrl, (newUrl, oldUrl) => {
     editedData.value = null
     saveSuccess.value = false
     saveError.value = null
+    loading.value = true
+    showIframeViewer.value = false
     
-    // Load new data
-    loadCSVData().then(() => {
-      // Check for overflow after data is loaded
-      nextTick(() => {
-        checkTableOverflow()
-      })
-    })
+    // The DirectCsvFetcher component will handle loading the data
   }
 }, { immediate: false })
 
 // Initialize component
 onMounted(() => {
   if (props.fileUrl) {
-    loadCSVData().then(() => {
-      nextTick(() => {
-        // Set scrollable element reference
+    loading.value = true
+    
+    // The DirectCsvFetcher component will handle loading the data
+    
+    nextTick(() => {
+      // Set scrollable element reference
+      if (tableContainer.value) {
         scrollableElement.value = tableContainer.value.querySelector('.scrollable-table')
         
         // Add scroll event listener
@@ -356,14 +381,14 @@ onMounted(() => {
         
         // Check for overflow
         checkTableOverflow()
-        
-        // Add a small delay to ensure the table is fully rendered
-        setTimeout(() => {
-          if (minimapRef.value) {
-            minimapRef.value.updateMinimapViewport()
-          }
-        }, 500)
-      })
+      }
+      
+      // Add a small delay to ensure the table is fully rendered
+      setTimeout(() => {
+        if (minimapRef.value && scrollableElement.value) {
+          minimapRef.value.updateMinimapViewport()
+        }
+      }, 500)
     })
   }
   
@@ -410,6 +435,19 @@ onBeforeUnmount(() => {
           </div>
         </v-card>
         
+        <!-- Direct link options -->
+        <CsvDirectLink
+          :fileUrl="props.fileUrl"
+          :visible="error || loading"
+        />
+        
+        <!-- Use DirectCsvFetcher to load CSV data -->
+        <DirectCsvFetcher
+          :fileUrl="props.fileUrl"
+          @csv-loaded="handleCsvLoaded"
+          @error="handleCsvError"
+        />
+        
         <div v-if="loading" class="text-center py-4">
           <v-progress-circular indeterminate color="primary"></v-progress-circular>
           <div class="mt-2">Loading CSV data...</div>
@@ -441,6 +479,12 @@ onBeforeUnmount(() => {
         >
           {{ saveError }}
         </v-alert>
+        
+        <!-- Iframe viewer as a last resort -->
+        <CsvIframeViewer
+          :fileUrl="props.fileUrl"
+          :visible="showIframeViewer && error && !loading"
+        />
         
         <div v-if="!loading && !error">
           <v-alert

@@ -2,10 +2,9 @@
 import { ref, computed } from 'vue'
 import { API_BASE_URL } from './config'
 import CsvUploader from './components/CsvUploader.vue'
-import CsvVerifier from './components/CsvVerifier.vue'
-import CsvUpdater from './components/CsvUpdater.vue'
-import CsvDownloader from './components/CsvDownloader.vue'
 import CustomTableViewer from './components/CustomTableViewer.vue'
+import AboutSection from './components/AboutSection.vue'
+import CorsToggle from './components/CorsToggle.vue'
 
 const lastUploadedFile = ref(null)
 const lastVerifiedFile = ref(null)
@@ -14,6 +13,9 @@ const activeTab = ref('upload')
 const selectedFileForViewing = ref(null)
 const fileUrlInput = ref('')
 const viewedFiles = ref([]) // History of viewed files
+const showShareDialog = ref(false)
+const shareUrl = ref('')
+const shareSnackbar = ref(false)
 
 const handleFileUploaded = (result) => {
   lastUploadedFile.value = result
@@ -78,9 +80,49 @@ const addToViewHistory = (fileUrl) => {
   }
 }
 
+// We'll keep this computed property but modify it to always return false
+// since we've removed the advanced tab
 const showAdvancedFeatures = computed(() => {
-  return activeTab.value === 'advanced'
+  return false
 })
+
+// Share file functionality
+const shareFile = (fileUrl) => {
+  if (fileUrl) {
+    // Create the full URL including the base URL of the application
+    const fullUrl = new URL(window.location.href)
+    fullUrl.pathname = '/'
+    fullUrl.hash = '#/viewer'
+    fullUrl.searchParams.set('file', fileUrl)
+    
+    shareUrl.value = fullUrl.toString()
+    
+    // Try to use the Web Share API if available
+    if (navigator.share) {
+      navigator.share({
+        title: 'View CSV File',
+        text: 'Check out this CSV file',
+        url: shareUrl.value
+      }).catch(() => {
+        // Fallback to copy to clipboard if share fails
+        copyToClipboard()
+      })
+    } else {
+      // If Web Share API is not available, show dialog or copy to clipboard
+      copyToClipboard()
+    }
+  }
+}
+
+// Copy URL to clipboard
+const copyToClipboard = () => {
+  navigator.clipboard.writeText(shareUrl.value).then(() => {
+    // Show success message
+    shareSnackbar.value = true
+  }).catch(err => {
+    console.error('Could not copy text: ', err)
+  })
+}
 </script>
 
 <template>
@@ -95,7 +137,6 @@ const showAdvancedFeatures = computed(() => {
         <v-tabs v-model="activeTab">
           <v-tab value="upload">Home</v-tab>
           <v-tab value="viewer">CSV Viewer</v-tab>
-          <v-tab value="advanced">Advanced Tools</v-tab>
           <v-tab value="about">About</v-tab>
         </v-tabs>
         <v-spacer></v-spacer>
@@ -112,7 +153,7 @@ const showAdvancedFeatures = computed(() => {
               <v-col cols="12" class="text-center">
                 <h1 class="text-h3 font-weight-bold mb-6">Temp CSV Online</h1>
                 <p class="text-body-1 mb-8 mx-auto" style="max-width: 800px;">
-                  Upload, verify, update, and download CSV files stored in Cloudflare R2.
+                  Upload, view, update, and download CSV files stored in Cloudflare R2.
                   Your files are securely stored and easily accessible whenever you need them.
                 </p>
                 
@@ -121,6 +162,7 @@ const showAdvancedFeatures = computed(() => {
                   class="pa-8 mb-8 rounded-lg mx-auto csv-uploader-container" 
                   color="primary-lighten-5"
                   border
+                  width="100%"
                 >
                   <h2 class="text-h5 mb-4">Upload your CSV file</h2>
                   <CsvUploader 
@@ -128,6 +170,140 @@ const showAdvancedFeatures = computed(() => {
                     @view-file="openFileInViewer"
                   />
                 </v-sheet>
+                
+                <!-- Recent Activity Section (Moved from Advanced Tools) -->
+                <div class="tool-section" v-if="lastUploadedFile || lastVerifiedFile || lastUpdatedFile">
+                  <v-card>
+                    <v-card-title class="text-h5">
+                      <v-icon start icon="mdi-history" class="mr-2"></v-icon>
+                      Recent Activity
+                    </v-card-title>
+                    
+                    <v-card-text>
+                      <v-list>
+                        <v-list-item v-if="lastUploadedFile">
+                          <template v-slot:prepend>
+                            <v-icon icon="mdi-file-upload-outline"></v-icon>
+                          </template>
+                          <v-list-item-title>File Uploaded</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <code>{{ lastUploadedFile.fileUrl }}</code>
+                          </v-list-item-subtitle>
+                          <template v-slot:append>
+                            <div class="d-flex">
+                              <v-btn
+                                color="primary"
+                                variant="tonal"
+                                size="small"
+                                class="mr-2"
+                                @click="shareFile(lastUploadedFile.fileUrl)"
+                                title="Share File"
+                              >
+                                <v-icon start>mdi-share-variant</v-icon>
+                                Share
+                              </v-btn>
+                              <v-btn
+                                icon="mdi-table-eye"
+                                variant="text"
+                                size="small"
+                                class="mr-2"
+                                @click="openFileInViewer(lastUploadedFile.fileUrl)"
+                                title="View in CSV Viewer"
+                              ></v-btn>
+                              <v-btn
+                                icon="mdi-download"
+                                variant="text"
+                                size="small"
+                                @click="openFile(lastUploadedFile.fileUrl)"
+                                title="Download"
+                              ></v-btn>
+                            </div>
+                          </template>
+                        </v-list-item>
+                        
+                        <v-list-item v-if="lastVerifiedFile">
+                          <template v-slot:prepend>
+                            <v-icon icon="mdi-file-check-outline"></v-icon>
+                          </template>
+                          <v-list-item-title>File Verified</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <code>{{ lastVerifiedFile.fileUrl }}</code>
+                          </v-list-item-subtitle>
+                          <template v-slot:append>
+                            <div class="d-flex">
+                              <v-btn
+                                color="primary"
+                                variant="tonal"
+                                size="small"
+                                class="mr-2"
+                                @click="shareFile(lastVerifiedFile.fileUrl)"
+                                title="Share File"
+                              >
+                                <v-icon start>mdi-share-variant</v-icon>
+                                Share
+                              </v-btn>
+                              <v-btn
+                                icon="mdi-table-eye"
+                                variant="text"
+                                size="small"
+                                class="mr-2"
+                                @click="openFileInViewer(lastVerifiedFile.fileUrl)"
+                                title="View in CSV Viewer"
+                              ></v-btn>
+                              <v-btn
+                                icon="mdi-download"
+                                variant="text"
+                                size="small"
+                                @click="openFile(lastVerifiedFile.fileUrl)"
+                                title="Download"
+                              ></v-btn>
+                            </div>
+                          </template>
+                        </v-list-item>
+                        
+                        <v-list-item v-if="lastUpdatedFile">
+                          <template v-slot:prepend>
+                            <v-icon icon="mdi-file-replace-outline"></v-icon>
+                          </template>
+                          <v-list-item-title>File Updated</v-list-item-title>
+                          <v-list-item-subtitle>
+                            <code>{{ lastUpdatedFile.fileUrl }}</code>
+                          </v-list-item-subtitle>
+                          <template v-slot:append>
+                            <div class="d-flex">
+                              <v-btn
+                                color="primary"
+                                variant="tonal"
+                                size="small"
+                                class="mr-2"
+                                @click="shareFile(lastUpdatedFile.fileUrl)"
+                                title="Share File"
+                              >
+                                <v-icon start>mdi-share-variant</v-icon>
+                                Share
+                              </v-btn>
+                              <v-btn
+                                icon="mdi-table-eye"
+                                variant="text"
+                                size="small"
+                                class="mr-2"
+                                @click="openFileInViewer(lastUpdatedFile.fileUrl)"
+                                title="View in CSV Viewer"
+                              ></v-btn>
+                              <v-btn
+                                icon="mdi-download"
+                                variant="text"
+                                size="small"
+                                @click="openFile(lastUpdatedFile.fileUrl)"
+                                title="Download"
+                              ></v-btn>
+                            </div>
+                          </template>
+                        </v-list-item>
+                      </v-list>
+                    </v-card-text>
+                  </v-card>
+                </div>
                 
                 <!-- Features Section -->
                 <v-row class="mt-12 justify-center">
@@ -158,129 +334,13 @@ const showAdvancedFeatures = computed(() => {
           </v-container>
         </v-window-item>
 
-        <!-- Advanced Tools Tab -->
-        <v-window-item value="advanced">
-          <v-container class="py-8 app-container">
-            <h2 class="text-h4 mb-6">Advanced Tools</h2>
-            
-            <div class="tool-section csv-verifier-container">
-              <CsvVerifier @file-verified="handleFileVerified" />
-            </div>
-            
-            <div class="tool-section csv-updater-container">
-              <CsvUpdater @file-updated="handleFileUpdated" />
-            </div>
-            
-            <div class="tool-section csv-downloader-container">
-              <CsvDownloader />
-            </div>
-            
-            <div class="tool-section" v-if="lastUploadedFile || lastVerifiedFile || lastUpdatedFile">
-              <v-card>
-                <v-card-title class="text-h5">
-                  <v-icon start icon="mdi-history" class="mr-2"></v-icon>
-                  Recent Activity
-                </v-card-title>
-                
-                <v-card-text>
-                  <v-list>
-                    <v-list-item v-if="lastUploadedFile">
-                      <template v-slot:prepend>
-                        <v-icon icon="mdi-file-upload-outline"></v-icon>
-                      </template>
-                      <v-list-item-title>File Uploaded</v-list-item-title>
-                      <v-list-item-subtitle>
-                        <code>{{ lastUploadedFile.fileUrl }}</code>
-                      </v-list-item-subtitle>
-                      <template v-slot:append>
-                        <div class="d-flex">
-                          <v-btn
-                            icon="mdi-table-eye"
-                            variant="text"
-                            size="small"
-                            class="mr-2"
-                            @click="openFileInViewer(lastUploadedFile.fileUrl)"
-                            title="View in CSV Viewer"
-                          ></v-btn>
-                          <v-btn
-                            icon="mdi-download"
-                            variant="text"
-                            size="small"
-                            @click="openFile(lastUploadedFile.fileUrl)"
-                            title="Download"
-                          ></v-btn>
-                        </div>
-                      </template>
-                    </v-list-item>
-                    
-                    <v-list-item v-if="lastVerifiedFile">
-                      <template v-slot:prepend>
-                        <v-icon icon="mdi-file-check-outline"></v-icon>
-                      </template>
-                      <v-list-item-title>File Verified</v-list-item-title>
-                      <v-list-item-subtitle>
-                        <code>{{ lastVerifiedFile.fileUrl }}</code>
-                      </v-list-item-subtitle>
-                      <template v-slot:append>
-                        <div class="d-flex">
-                          <v-btn
-                            icon="mdi-table-eye"
-                            variant="text"
-                            size="small"
-                            class="mr-2"
-                            @click="openFileInViewer(lastVerifiedFile.fileUrl)"
-                            title="View in CSV Viewer"
-                          ></v-btn>
-                          <v-btn
-                            icon="mdi-download"
-                            variant="text"
-                            size="small"
-                            @click="openFile(lastVerifiedFile.fileUrl)"
-                            title="Download"
-                          ></v-btn>
-                        </div>
-                      </template>
-                    </v-list-item>
-                    
-                    <v-list-item v-if="lastUpdatedFile">
-                      <template v-slot:prepend>
-                        <v-icon icon="mdi-file-replace-outline"></v-icon>
-                      </template>
-                      <v-list-item-title>File Updated</v-list-item-title>
-                      <v-list-item-subtitle>
-                        <code>{{ lastUpdatedFile.fileUrl }}</code>
-                      </v-list-item-subtitle>
-                      <template v-slot:append>
-                        <div class="d-flex">
-                          <v-btn
-                            icon="mdi-table-eye"
-                            variant="text"
-                            size="small"
-                            class="mr-2"
-                            @click="openFileInViewer(lastUpdatedFile.fileUrl)"
-                            title="View in CSV Viewer"
-                          ></v-btn>
-                          <v-btn
-                            icon="mdi-download"
-                            variant="text"
-                            size="small"
-                            @click="openFile(lastUpdatedFile.fileUrl)"
-                            title="Download"
-                          ></v-btn>
-                        </div>
-                      </template>
-                    </v-list-item>
-                  </v-list>
-                </v-card-text>
-              </v-card>
-            </div>
-          </v-container>
-        </v-window-item>
-        
         <!-- CSV Viewer Tab -->
         <v-window-item value="viewer">
           <v-container class="py-8 app-container">
             <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
+            
+            <!-- CORS Toggle Component -->
+            <CorsToggle />
             
             <!-- File URL Input -->
             <v-card class="mb-6">
@@ -315,7 +375,7 @@ const showAdvancedFeatures = computed(() => {
               </v-card-text>
             </v-card>
             
-            <!-- Recently Viewed Files -->
+            <!-- Recently Viewed Files with Share Buttons -->
             <v-card v-if="viewedFiles.length > 0" class="mb-6">
               <v-card-title>
                 <v-icon start icon="mdi-history" class="mr-2"></v-icon>
@@ -328,11 +388,28 @@ const showAdvancedFeatures = computed(() => {
                     :key="index"
                     color="primary"
                     variant="outlined"
-                    @click="openFileInViewer(file)"
                     class="mr-2 mb-2"
                   >
                     <v-icon start size="small">mdi-file-document-outline</v-icon>
                     {{ file.split('/').pop() }}
+                    
+                    <div class="d-flex align-center ml-2">
+                      <v-btn
+                        icon="mdi-eye"
+                        variant="text"
+                        size="x-small"
+                        class="mr-1"
+                        @click="openFileInViewer(file)"
+                        title="View"
+                      ></v-btn>
+                      <v-btn
+                        icon="mdi-share-variant"
+                        variant="text"
+                        size="x-small"
+                        @click="shareFile(file)"
+                        title="Share"
+                      ></v-btn>
+                    </div>
                   </v-chip>
                 </v-chip-group>
               </v-card-text>
@@ -368,76 +445,7 @@ const showAdvancedFeatures = computed(() => {
         
         <!-- About Tab -->
         <v-window-item value="about">
-          <v-container class="py-8 app-container">
-            <h2 class="text-h4 mb-6">About CSV Manager</h2>
-            <v-card class="mb-6">
-              <v-card-text>
-                <p class="text-body-1 mb-4">
-                  CSV Manager is a simple, efficient tool for managing CSV files in the cloud. 
-                  Built with Cloudflare R2 storage, it provides a reliable way to store, update, 
-                  and share your CSV files.
-                </p>
-                <p class="text-body-1 mb-4">
-                  This service is designed to be temporary and anonymous, allowing you to quickly 
-                  upload and share CSV files without the need for authentication.
-                </p>
-                <p class="text-body-1">
-                  <strong>API Endpoint:</strong> <code>{{ API_BASE_URL }}</code>
-                </p>
-              </v-card-text>
-            </v-card>
-            
-            <h3 class="text-h5 mb-4">How to Use</h3>
-            <v-timeline>
-              <v-timeline-item dot-color="primary">
-                <template v-slot:opposite>
-                  <span class="text-caption">Step 1</span>
-                </template>
-                <v-card>
-                  <v-card-title class="text-h6">Upload a CSV File</v-card-title>
-                  <v-card-text>
-                    Use the uploader on the home page to upload your CSV file. You'll receive a unique URL.
-                  </v-card-text>
-                </v-card>
-              </v-timeline-item>
-              
-              <v-timeline-item dot-color="primary">
-                <template v-slot:opposite>
-                  <span class="text-caption">Step 2</span>
-                </template>
-                <v-card>
-                  <v-card-title class="text-h6">Share or Verify the File</v-card-title>
-                  <v-card-text>
-                    Share the URL with others or use the Verify tool to check if the file exists.
-                  </v-card-text>
-                </v-card>
-              </v-timeline-item>
-              
-              <v-timeline-item dot-color="primary">
-                <template v-slot:opposite>
-                  <span class="text-caption">Step 3</span>
-                </template>
-                <v-card>
-                  <v-card-title class="text-h6">View and Edit</v-card-title>
-                  <v-card-text>
-                    Use the CSV Viewer to view and edit your CSV files directly in the browser.
-                  </v-card-text>
-                </v-card>
-              </v-timeline-item>
-              
-              <v-timeline-item dot-color="primary">
-                <template v-slot:opposite>
-                  <span class="text-caption">Step 4</span>
-                </template>
-                <v-card>
-                  <v-card-title class="text-h6">Update if Needed</v-card-title>
-                  <v-card-text>
-                    Use the Update tool to replace the file while keeping the same URL.
-                  </v-card-text>
-                </v-card>
-              </v-timeline-item>
-            </v-timeline>
-          </v-container>
+          <AboutSection />
         </v-window-item>
       </v-window>
     </v-main>
@@ -446,14 +454,14 @@ const showAdvancedFeatures = computed(() => {
       <v-container class="app-container">
         <v-row>
           <v-col cols="12" md="4">
-            <h3 class="text-h6 mb-2">CSV Manager</h3>
+            <h3 class="text-h6 mb-2">Temp CSV</h3>
             <p class="text-body-2">
-              A simple tool for managing CSV files in the cloud.
+              Upload, view, update, and share CSV files online.
             </p>
           </v-col>
           <v-col cols="12" md="4" class="text-center">
             <p class="text-body-2">
-              &copy; {{ new Date().getFullYear() }} CSV File Manager
+              &copy; {{ new Date().getFullYear() }} Temp CSV
             </p>
           </v-col>
           <v-col cols="12" md="4" class="text-md-end">
@@ -462,6 +470,23 @@ const showAdvancedFeatures = computed(() => {
         </v-row>
       </v-container>
     </v-footer>
+
+    <!-- Share Snackbar -->
+    <v-snackbar
+      v-model="shareSnackbar"
+      timeout="3000"
+      color="success"
+    >
+      Link copied to clipboard!
+      <template v-slot:actions>
+        <v-btn
+          variant="text"
+          @click="shareSnackbar = false"
+        >
+          Close
+        </v-btn>
+      </template>
+    </v-snackbar>
   </v-app>
 </template>
 
@@ -518,6 +543,7 @@ code {
 .csv-updater-container,
 .csv-downloader-container {
   width: 100%;
+  max-width: 100% !important;
 }
 
 /* Remove max-width constraint from main upload area */
