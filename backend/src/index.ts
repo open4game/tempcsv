@@ -17,7 +17,9 @@ const app = new Hono<{ Bindings: Env }>()
 // Add CORS middleware
 app.use('*', cors({
   origin: [
-    'http://localhost:5173', 
+    'http://localhost:8000', 
+    'http://localhost:8000',
+    'http://localhost:5173',
     'https://csv-manager.zhangzhibin.workers.dev', 
     'https://yourdomain.com',
     'https://anotherdomain.com'

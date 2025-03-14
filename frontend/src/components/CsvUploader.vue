@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
 import { API_BASE_URL } from '../config'
+import { uploadCsvFile } from '../services/api'
 
 const file = ref(null)
 const uploading = ref(false)
@@ -37,29 +38,15 @@ const uploadFile = async () => {
   errorMessage.value = ''
   
   try {
-    const formData = new FormData()
-    formData.append('file', file.value)
+    // Use the direct API service to upload the file
+    const result = await uploadCsvFile(file.value)
     
-    const response = await fetch(`${API_BASE_URL}/upload`, {
-      method: 'POST',
-      body: formData
-    })
-    
-    const result = await response.json()
-    
-    if (response.ok) {
-      // Format the file URL to include the API base URL if it's a relative path
-      if (result.fileUrl && result.fileUrl.startsWith('/')) {
-        result.fileUrl = `${API_BASE_URL}${result.fileUrl}`
-      }
-      uploadResult.value = result
-      emit('file-uploaded', result)
-      file.value = null
-    } else {
-      errorMessage.value = result.error || 'Upload failed'
-    }
+    uploadResult.value = result
+    emit('file-uploaded', result)
+    file.value = null
   } catch (error) {
     errorMessage.value = error.message || 'An error occurred during upload'
+    console.error('Upload error:', error)
   } finally {
     uploading.value = false
   }

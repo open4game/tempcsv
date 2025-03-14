@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, watch } from 'vue'
+import { fetchCsvData, fetchCsvWithXhr } from '../services/api'
 
 const props = defineProps({
   fileUrl: {
@@ -19,69 +20,29 @@ const loadCsvData = async () => {
   error.value = null
   
   try {
-    // Use a simple fetch with appropriate configuration
-    const response = await fetch(props.fileUrl, {
-      method: 'GET',
-      mode: 'cors',
-      credentials: 'same-origin',
-      headers: { 
-        'Accept': 'text/csv,text/plain,*/*' 
-      }
-    })
-    
-    if (response.ok) {
-      const csvText = await response.text()
-      emit('csv-loaded', csvText)
-    } else {
-      error.value = `Failed to fetch CSV file (Status: ${response.status})`
-      emit('error', error.value)
-      
-      // If fetch fails, try XMLHttpRequest as fallback
-      loadCsvWithXhr()
-    }
+    // Use the direct API service to fetch CSV data
+    const csvText = await fetchCsvData(props.fileUrl)
+    emit('csv-loaded', csvText)
   } catch (err) {
     console.error('Fetch error:', err)
     error.value = `Error loading CSV: ${err.message}`
     emit('error', error.value)
     
     // If fetch fails with an error, try XMLHttpRequest as fallback
-    loadCsvWithXhr()
+    try {
+      console.log('Trying XHR fallback...')
+      const csvText = await fetchCsvWithXhr(props.fileUrl)
+      emit('csv-loaded', csvText)
+      // Clear error if XHR succeeds
+      error.value = null
+    } catch (xhrErr) {
+      console.error('XHR fallback error:', xhrErr)
+      error.value = `Error loading CSV: ${xhrErr.message}`
+      emit('error', error.value)
+    }
   } finally {
     loading.value = false
   }
-}
-
-// Fallback function using XMLHttpRequest
-const loadCsvWithXhr = () => {
-  loading.value = true
-  
-  const xhr = new XMLHttpRequest()
-  
-  xhr.onload = function() {
-    if (xhr.status >= 200 && xhr.status < 300) {
-      try {
-        const csvText = xhr.responseText
-        emit('csv-loaded', csvText)
-      } catch (err) {
-        error.value = `Error parsing CSV: ${err.message}`
-        emit('error', error.value)
-      }
-    } else {
-      error.value = `Failed to fetch CSV file (Status: ${xhr.status})`
-      emit('error', error.value)
-    }
-    loading.value = false
-  }
-  
-  xhr.onerror = function() {
-    error.value = 'Network error or CORS issue'
-    emit('error', error.value)
-    loading.value = false
-  }
-  
-  xhr.open('GET', props.fileUrl)
-  xhr.setRequestHeader('Accept', 'text/csv,text/plain,*/*')
-  xhr.send()
 }
 
 // Watch for changes to the fileUrl prop

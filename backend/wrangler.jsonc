@@ -2,7 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "csv-manager",
   "main": "src/index.ts",
-  "compatibility_date": "2025-03-12",
+  "compatibility_date": "2025-03-10",
   "compatibility_flags": ["nodejs_compat"],
   "r2_buckets": [
     {
