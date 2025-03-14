@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, nextTick, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, nextTick, onBeforeUnmount, computed } from 'vue'
 import TableMinimap from './TableMinimap.vue'
 
 const props = defineProps({
@@ -26,6 +26,9 @@ const emit = defineEmits(['cell-edited', 'edit-started', 'edit-cancelled'])
 const editedData = ref(null)
 const currentEditCell = ref(null)
 const editValue = ref('')
+const hoveredRow = ref(null)
+const hoveredColumn = ref(null)
+const selectedCells = ref([])
 
 // Table refs and state
 const tableContainer = ref(null)
@@ -36,7 +39,31 @@ const enableMinimapDebug = ref(false)
 const hasHorizontalOverflow = ref(false)
 const hasVerticalOverflow = ref(false)
 
-// Start cell editing
+// Column resizing state
+const isResizing = ref(false)
+const resizingColumnIndex = ref(null)
+const startX = ref(0)
+const startWidth = ref(0)
+
+// Generate alphabet column headers (A, B, C, ... Z, AA, AB, etc.)
+const getColumnLetter = (index) => {
+  let result = '';
+  let num = index;
+  
+  while (num >= 0) {
+    result = String.fromCharCode(65 + (num % 26)) + result;
+    num = Math.floor(num / 26) - 1;
+  }
+  
+  return result;
+}
+
+// Column letters for display
+const columnLetters = computed(() => {
+  return props.columns.map((_, index) => getColumnLetter(index));
+});
+
+// Start cell editing (now with double-click)
 const startEditing = (row, column, rowIndex, colIndex) => {
   if (!props.editable) return
   
@@ -144,16 +171,280 @@ const scrollToBottom = () => {
   }
 }
 
+// Set hovered row and column for visual feedback
+const setHoveredCell = (rowIndex, colIndex) => {
+  hoveredRow.value = rowIndex
+  hoveredColumn.value = colIndex
+}
+
+// Clear hovered state
+const clearHoveredCell = () => {
+  hoveredRow.value = null
+  hoveredColumn.value = null
+}
+
+// Toggle cell selection for export
+const toggleCellSelection = (rowIndex, colIndex) => {
+  const cellKey = `${rowIndex}-${colIndex}`
+  const index = selectedCells.value.indexOf(cellKey)
+  
+  if (index === -1) {
+    selectedCells.value.push(cellKey)
+  } else {
+    selectedCells.value.splice(index, 1)
+  }
+}
+
+// Check if a cell is selected
+const isCellSelected = (rowIndex, colIndex) => {
+  return selectedCells.value.includes(`${rowIndex}-${colIndex}`)
+}
+
+// Export table data as CSV
+const exportAsCSV = () => {
+  // Get headers from columns
+  const headers = props.columns.map(col => col.field)
+  
+  // Create CSV rows
+  const csvRows = []
+  
+  // Add header row
+  csvRows.push(headers.join(','))
+  
+  // Add data rows
+  const dataToExport = editedData.value || props.rows
+  for (const row of dataToExport) {
+    const values = headers.map(header => {
+      const val = row[header]
+      // Handle values with commas by wrapping in quotes
+      return typeof val === 'string' && val.includes(',') ? `"${val}"` : val
+    })
+    csvRows.push(values.join(','))
+  }
+  
+  // Create a blob and download
+  const csvContent = csvRows.join('\n')
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const url = URL.createObjectURL(blob)
+  
+  // Create a link and trigger download
+  const link = document.createElement('a')
+  link.setAttribute('href', url)
+  link.setAttribute('download', 'table_export.csv')
+  link.style.visibility = 'hidden'
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+// Copy selected cells to clipboard
+const copySelectedToClipboard = () => {
+  if (selectedCells.value.length === 0) {
+    // If no cells are selected, copy all data
+    exportAsCSV()
+    return
+  }
+  
+  // Get selected cells data
+  const dataToExport = editedData.value || props.rows
+  const selectedData = []
+  
+  // Group by row for proper formatting
+  const rowGroups = {}
+  
+  selectedCells.value.forEach(cellKey => {
+    const [rowIndex, colIndex] = cellKey.split('-').map(Number)
+    if (!rowGroups[rowIndex]) {
+      rowGroups[rowIndex] = []
+    }
+    
+    const column = props.columns[colIndex]
+    const cellValue = dataToExport[rowIndex][column.field]
+    rowGroups[rowIndex].push({ colIndex, value: cellValue })
+  })
+  
+  // Sort rows and columns
+  Object.keys(rowGroups).sort((a, b) => Number(a) - Number(b)).forEach(rowIndex => {
+    const rowData = rowGroups[rowIndex].sort((a, b) => a.colIndex - b.colIndex).map(cell => cell.value)
+    selectedData.push(rowData.join('\t'))
+  })
+  
+  // Copy to clipboard
+  navigator.clipboard.writeText(selectedData.join('\n'))
+    .then(() => {
+      alert('Selected data copied to clipboard')
+      // Clear selection after copy
+      selectedCells.value = []
+    })
+    .catch(err => {
+      console.error('Failed to copy data: ', err)
+    })
+}
+
+// Add a computed property to determine if we need empty rows
+const emptyRowsCount = computed(() => {
+  // For small tables, add empty rows to reach a minimum of 5 rows
+  const minRows = 5;
+  return props.rows.length < minRows ? minRows - props.rows.length : 0;
+});
+
+// Function to calculate optimal column widths based on content
+const calculateOptimalColumnWidths = () => {
+  if (!props.columns || props.columns.length === 0) return
+  
+  // Get column fields
+  const fields = props.columns.map(col => col.field)
+  
+  // Initialize with minimum widths based on header length
+  const optimalWidths = props.columns.map(col => {
+    // Start with header length (each character is roughly 8px wide)
+    const headerLength = col.label ? col.label.length * 8 : 0
+    return Math.max(120, headerLength + 32) // Add padding, minimum 120px
+  })
+  
+  // If we have rows, sample them to determine width
+  if (props.rows && props.rows.length > 0) {
+    // Sample rows to determine width (check up to 100 rows for performance)
+    const sampleSize = Math.min(props.rows.length, 100)
+    const sampleRows = props.rows.slice(0, sampleSize)
+    
+    // Check content width for each cell
+    sampleRows.forEach(row => {
+      fields.forEach((field, index) => {
+        const content = row[field]
+        if (content) {
+          // Estimate content width (each character is roughly 8px wide)
+          const contentLength = String(content).length * 8
+          optimalWidths[index] = Math.max(optimalWidths[index], contentLength + 32) // Add padding
+        }
+      })
+    })
+  }
+  
+  // For small tables (few columns), ensure minimum total width
+  const totalWidth = optimalWidths.reduce((sum, width) => sum + width, 0)
+  const minTotalWidth = 600 // Minimum total width for the table
+  
+  if (totalWidth < minTotalWidth && optimalWidths.length > 0) {
+    // Distribute additional width evenly among columns
+    const additionalWidthPerColumn = Math.floor((minTotalWidth - totalWidth) / optimalWidths.length)
+    return optimalWidths.map(width => width + additionalWidthPerColumn)
+  }
+  
+  // Cap maximum width to prevent extremely wide columns
+  return optimalWidths.map(width => Math.min(width, 300))
+}
+
+// Apply calculated column widths
+const applyColumnWidths = () => {
+  nextTick(() => {
+    if (!tableContainer.value) return
+    
+    const optimalWidths = calculateOptimalColumnWidths()
+    if (!optimalWidths) return
+    
+    // Apply widths to all columns
+    optimalWidths.forEach((width, index) => {
+      // Column index is +1 because of row index column
+      const colIndex = index + 1
+      
+      // Get all cells in this column (including headers and letter headers)
+      const allCells = tableContainer.value.querySelectorAll(`th:nth-child(${colIndex + 1}), td:nth-child(${colIndex + 1})`)
+      
+      // Apply the width to all cells in the column
+      allCells.forEach(cell => {
+        cell.style.width = `${width}px`
+        cell.style.minWidth = `${width}px`
+      })
+    })
+  })
+}
+
+// Replace the adjustColumnWidths function with our new implementation
+const adjustColumnWidths = () => {
+  applyColumnWidths()
+}
+
 // Watch for changes that might affect table dimensions
 watch(() => props.rows, () => {
   checkTableOverflow()
   // Reset edited data when rows change
   editedData.value = null
+  // Adjust column widths when rows change
+  nextTick(() => {
+    applyColumnWidths()
+    // Force a second adjustment after a short delay to ensure everything is rendered
+    setTimeout(applyColumnWidths, 100)
+  })
 }, { deep: true })
 
 watch(() => props.columns, () => {
   checkTableOverflow()
+  // Adjust column widths when columns change
+  nextTick(() => {
+    applyColumnWidths()
+    // Force a second adjustment after a short delay to ensure everything is rendered
+    setTimeout(applyColumnWidths, 100)
+  })
 }, { deep: true })
+
+// Start column resize
+const startResize = (event, index) => {
+  isResizing.value = true
+  resizingColumnIndex.value = index
+  startX.value = event.clientX
+  
+  // Add resizing class to body
+  document.body.classList.add('resizing')
+  
+  // Get current width of the column
+  const colIndex = index + 1 // +1 because of row index column
+  const columnCell = tableContainer.value.querySelector(`th:nth-child(${colIndex + 1})`)
+  
+  if (columnCell) {
+    startWidth.value = columnCell.getBoundingClientRect().width
+  }
+  
+  // Add event listeners for mouse move and mouse up
+  document.addEventListener('mousemove', handleResize)
+  document.addEventListener('mouseup', stopResize)
+  
+  // Prevent text selection during resize
+  event.preventDefault()
+}
+
+// Handle column resize
+const handleResize = (event) => {
+  if (!isResizing.value) return
+  
+  const deltaX = event.clientX - startX.value
+  const newWidth = Math.max(80, startWidth.value + deltaX) // Minimum width of 80px
+  
+  // Apply new width to all cells in the column (including headers)
+  const colIndex = resizingColumnIndex.value + 1 // +1 because of row index column
+  
+  // Get all cells in this column (including headers and letter headers)
+  const allCells = tableContainer.value.querySelectorAll(`th:nth-child(${colIndex + 1}), td:nth-child(${colIndex + 1})`)
+  
+  // Apply the new width to all cells in the column
+  allCells.forEach(cell => {
+    cell.style.width = `${newWidth}px`
+    cell.style.minWidth = `${newWidth}px`
+  })
+}
+
+// Stop column resize
+const stopResize = () => {
+  isResizing.value = false
+  resizingColumnIndex.value = null
+  
+  // Remove resizing class from body
+  document.body.classList.remove('resizing')
+  
+  // Remove event listeners
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
+}
 
 // Initialize component
 onMounted(() => {
@@ -175,12 +466,21 @@ onMounted(() => {
         if (minimapRef.value && scrollableElement.value) {
           minimapRef.value.updateMinimapViewport()
         }
-      }, 500)
+        
+        // Apply column widths
+        applyColumnWidths()
+        
+        // Force a second adjustment after a short delay to ensure everything is rendered
+        setTimeout(applyColumnWidths, 300)
+      }, 200)
     }
   })
   
   // Add window resize listener
-  window.addEventListener('resize', checkTableOverflow)
+  window.addEventListener('resize', () => {
+    checkTableOverflow()
+    applyColumnWidths()
+  })
 })
 
 // Clean up event listeners
@@ -192,6 +492,10 @@ onBeforeUnmount(() => {
   if (scrollableElement.value) {
     scrollableElement.value.removeEventListener('scroll', handleTableScroll)
   }
+  
+  // Remove resize event listeners
+  document.removeEventListener('mousemove', handleResize)
+  document.removeEventListener('mouseup', stopResize)
 })
 
 // Expose methods to parent component
@@ -201,7 +505,9 @@ defineExpose({
   toggleMinimap,
   toggleMinimapDebug,
   hasHorizontalOverflow,
-  hasVerticalOverflow
+  hasVerticalOverflow,
+  exportAsCSV,
+  copySelectedToClipboard
 })
 </script>
 
@@ -221,6 +527,29 @@ defineExpose({
       </div>
       
       <div class="d-flex align-center">
+        <!-- Export options -->
+        <v-btn
+          color="success"
+          variant="text"
+          size="small"
+          @click="exportAsCSV"
+          class="mr-2"
+        >
+          <v-icon start>mdi-file-export</v-icon>
+          Export CSV
+        </v-btn>
+        
+        <v-btn
+          color="info"
+          variant="text"
+          size="small"
+          @click="copySelectedToClipboard"
+          class="mr-2"
+        >
+          <v-icon start>mdi-content-copy</v-icon>
+          Copy Selected
+        </v-btn>
+        
         <v-btn
           v-if="(hasHorizontalOverflow || hasVerticalOverflow) && scrollableElement"
           color="primary"
@@ -254,26 +583,70 @@ defineExpose({
         'has-vertical-overflow': hasVerticalOverflow 
       }"
     >
-      <!-- Custom Table Implementation -->
+      <!-- Unified Table Implementation -->
       <div class="scrollable-table">
         <table>
           <thead>
             <tr>
+              <!-- Corner cell (empty) -->
+              <th class="corner-cell">#</th>
+              
+              <!-- Column index headers (A, B, C, etc.) -->
+              <th 
+                v-for="(letter, index) in columnLetters" 
+                :key="'col-' + index" 
+                class="column-index"
+                :class="{ 'hovered-column': hoveredColumn === index }"
+              >
+                {{ letter }}
+                <div 
+                  class="resize-handle"
+                  @mousedown="startResize($event, index)"
+                ></div>
+              </th>
+            </tr>
+            <tr>
+              <!-- Row index header -->
               <th class="row-index-header">#</th>
-              <th v-for="(column, colIndex) in columns" :key="colIndex">
+              
+              <!-- Column headers with labels -->
+              <th 
+                v-for="(column, colIndex) in columns" 
+                :key="colIndex"
+                :class="{ 'hovered-column': hoveredColumn === colIndex }"
+              >
                 {{ column.label }}
+                <div 
+                  class="resize-handle"
+                  @mousedown="startResize($event, colIndex)"
+                ></div>
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="(row, rowIndex) in rows" :key="rowIndex">
+            <tr 
+              v-for="(row, rowIndex) in rows" 
+              :key="rowIndex"
+              :class="{ 'hovered-row': hoveredRow === rowIndex }"
+            >
+              <!-- Row index -->
               <td class="row-index">{{ rowIndex + 1 }}</td>
+              
+              <!-- Data cells -->
               <td 
                 v-for="(column, colIndex) in columns" 
                 :key="colIndex"
-                @click="startEditing(row, column, rowIndex, colIndex)"
+                @dblclick="startEditing(row, column, rowIndex, colIndex)"
+                @mouseover="setHoveredCell(rowIndex, colIndex)"
+                @mouseleave="clearHoveredCell"
+                @click="toggleCellSelection(rowIndex, colIndex)"
                 class="editable-cell"
-                :class="{ 'not-editable': !editable }"
+                :class="{ 
+                  'not-editable': !editable,
+                  'hovered-column': hoveredColumn === colIndex,
+                  'edited-cell': editedData && editedData[rowIndex] && editedData[rowIndex][column.field] !== row[column.field],
+                  'selected-cell': isCellSelected(rowIndex, colIndex)
+                }"
               >
                 <div v-if="currentEditCell && 
                           currentEditCell.rowIndex === rowIndex && 
@@ -297,6 +670,21 @@ defineExpose({
                   </div>
                 </div>
                 <span v-else>{{ row[column.field] }}</span>
+              </td>
+            </tr>
+            
+            <!-- Add empty rows for small tables -->
+            <tr 
+              v-for="i in emptyRowsCount" 
+              :key="`empty-${i}`"
+              class="empty-row"
+            >
+              <td class="row-index">{{ rows.length + i }}</td>
+              <td 
+                v-for="(column, colIndex) in columns" 
+                :key="colIndex"
+              >
+                &nbsp;
               </td>
             </tr>
           </tbody>
@@ -345,6 +733,7 @@ defineExpose({
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 16px;
+  min-width: 600px; /* Ensure minimum width for small tables */
 }
 
 .scrollable-table {
@@ -364,23 +753,54 @@ defineExpose({
 
 table {
   border-collapse: collapse;
-  width: 100%;
+  width: max-content; /* Allow it to expand based on content */
+  min-width: 100%;
+  table-layout: fixed;
 }
 
 th, td {
   border: 1px solid #ddd;
   padding: 8px;
   text-align: left;
+  min-width: 120px; /* Increased minimum width for small tables */
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-th {
-  background-color: #f5f5f5;
+/* Corner cell styling */
+.corner-cell {
+  width: 50px;
+  min-width: 50px;
+  background-color: #e0e0e0;
   position: sticky;
   top: 0;
-  z-index: 1;
+  left: 0;
+  z-index: 4;
+  text-align: center;
 }
 
-/* Row index column styling */
+/* Column index styling */
+.column-index {
+  background-color: #e0e0e0;
+  font-weight: bold;
+  color: #666;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Regular header styling */
+thead tr:nth-child(2) th {
+  background-color: #f5f5f5;
+  position: sticky;
+  top: 24px; /* Height of the column index row */
+  z-index: 2;
+}
+
+/* Row index header styling */
 .row-index-header, .row-index {
   width: 50px;
   min-width: 50px;
@@ -390,6 +810,40 @@ th {
   color: #666;
 }
 
+.row-index {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+/* Make sure the first row of headers stays fixed */
+thead tr:first-child th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
+/* Make sure the second row of headers stays fixed below the first row */
+thead tr:nth-child(2) th {
+  position: sticky;
+  top: 24px; /* Height of the first header row */
+  z-index: 2;
+}
+
+/* Ensure the corner cell in the second row has higher z-index */
+thead tr:nth-child(2) th.row-index-header {
+  z-index: 3;
+}
+
+/* For tables with few rows, add empty rows */
+.empty-row td {
+  height: 37px; /* Match the height of regular rows */
+  background-color: #f9f9f9;
+  border-color: #eee;
+  color: transparent;
+}
+
+/* Row index column styling */
 .row-index {
   position: sticky;
   left: 0;
@@ -413,8 +867,26 @@ tr:nth-child(even) .row-index {
   cursor: default;
 }
 
+/* Visual feedback for hovering */
+.hovered-row {
+  background-color: rgba(25, 118, 210, 0.05) !important;
+}
+
+.hovered-column {
+  background-color: rgba(25, 118, 210, 0.05) !important;
+}
+
+.edited-cell {
+  background-color: rgba(76, 175, 80, 0.1) !important;
+}
+
+.selected-cell {
+  background-color: rgba(255, 193, 7, 0.2) !important;
+  outline: 2px solid #FFC107;
+}
+
 .editable-cell:hover:not(.not-editable) {
-  background-color: rgba(25, 118, 210, 0.05);
+  background-color: rgba(25, 118, 210, 0.1);
 }
 
 .editable-cell:hover:not(.not-editable)::after {
@@ -497,6 +969,32 @@ tr:nth-child(even) .row-index {
 .table-container.has-vertical-overflow .scrollable-table:after {
   bottom: 0;
   background: linear-gradient(to top, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0));
+}
+
+/* Column resizing */
+.resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 5px;
+  height: 100%;
+  cursor: col-resize;
+  background-color: transparent;
+  transition: background-color 0.2s;
+}
+
+.resize-handle:hover {
+  background-color: rgba(25, 118, 210, 0.3);
+}
+
+/* Make column headers and indices relative for resize handle positioning */
+.column-index, th {
+  position: relative;
+}
+
+/* Add cursor style for when resizing is active */
+body.resizing {
+  cursor: col-resize !important;
 }
 </style>
 
