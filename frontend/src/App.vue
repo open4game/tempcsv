@@ -1,13 +1,11 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { API_BASE_URL } from './config'
 import CsvUploader from './components/CsvUploader.vue'
 import CustomTableViewer from './components/CustomTableViewer.vue'
 import AboutSection from './components/AboutSection.vue'
 import CorsToggle from './components/CorsToggle.vue'
 
 const lastUploadedFile = ref(null)
-const lastVerifiedFile = ref(null)
 const lastUpdatedFile = ref(null)
 const activeTab = ref('upload')
 const selectedFileForViewing = ref(null)
@@ -21,10 +19,6 @@ const handleFileUploaded = (result) => {
   lastUploadedFile.value = result
   // Don't automatically switch to advanced tab anymore
   // This allows the user to choose whether to view the file or go to advanced tools
-}
-
-const handleFileVerified = (result) => {
-  lastVerifiedFile.value = result
 }
 
 const handleFileUpdated = (result) => {
@@ -172,7 +166,7 @@ const copyToClipboard = () => {
                 </v-sheet>
                 
                 <!-- Recent Activity Section (Moved from Advanced Tools) -->
-                <div class="tool-section" v-if="lastUploadedFile || lastVerifiedFile || lastUpdatedFile">
+                <div class="tool-section" v-if="lastUploadedFile || lastUpdatedFile">
                   <v-card>
                     <v-card-title class="text-h5">
                       <v-icon start icon="mdi-history" class="mr-2"></v-icon>
@@ -215,46 +209,6 @@ const copyToClipboard = () => {
                                 variant="text"
                                 size="small"
                                 @click="openFile(lastUploadedFile.fileUrl)"
-                                title="Download"
-                              ></v-btn>
-                            </div>
-                          </template>
-                        </v-list-item>
-                        
-                        <v-list-item v-if="lastVerifiedFile">
-                          <template v-slot:prepend>
-                            <v-icon icon="mdi-file-check-outline"></v-icon>
-                          </template>
-                          <v-list-item-title>File Verified</v-list-item-title>
-                          <v-list-item-subtitle>
-                            <code>{{ lastVerifiedFile.fileUrl }}</code>
-                          </v-list-item-subtitle>
-                          <template v-slot:append>
-                            <div class="d-flex">
-                              <v-btn
-                                color="primary"
-                                variant="tonal"
-                                size="small"
-                                class="mr-2"
-                                @click="shareFile(lastVerifiedFile.fileUrl)"
-                                title="Share File"
-                              >
-                                <v-icon start>mdi-share-variant</v-icon>
-                                Share
-                              </v-btn>
-                              <v-btn
-                                icon="mdi-table-eye"
-                                variant="text"
-                                size="small"
-                                class="mr-2"
-                                @click="openFileInViewer(lastVerifiedFile.fileUrl)"
-                                title="View in CSV Viewer"
-                              ></v-btn>
-                              <v-btn
-                                icon="mdi-download"
-                                variant="text"
-                                size="small"
-                                @click="openFile(lastVerifiedFile.fileUrl)"
                                 title="Download"
                               ></v-btn>
                             </div>

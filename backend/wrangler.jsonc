@@ -12,9 +12,16 @@
     }
   ],
   "assets": {
-    "directory": "./public",
+    "directory": "../frontend/dist",
     "binding": "ASSETS"
-  }
+  },
+  "vars": {
+    "FRONT_HOST":"https://tempcsv.com",
+    "API_HOST": "https://tempcsv.com",
+    "DOWNLOAD_HOST": "https://my.tempcsv.com",
+    "FILE_FOLDER": "f",
+    "MAX_FILE_SIZE": 102400 // 100KB
+  }  
   // "compatibility_flags": [
   //   "nodejs_compat"
   // ],

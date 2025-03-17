@@ -1,6 +1,5 @@
 <script setup>
 import { ref } from 'vue'
-import { API_BASE_URL } from '../config'
 import { uploadCsvFile } from '../services/api'
 
 const file = ref(null)

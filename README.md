@@ -33,7 +33,7 @@ Use Hono as the backend framework, providing uploading and saving services. Depl
 - upload: upload the .csv file to Cloudflare R2, and return the file url with a random generated name.
 - save: save the .csv file to Cloudflare R2 with provided file url.
 
-Default entry point is `https://service.tempcsv.com`.
+Default entry point is `https://tempcsv.com/api/`.
 
 ## Download
 

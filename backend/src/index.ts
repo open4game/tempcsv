@@ -1,7 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { R2Bucket } from '@miniflare/r2'
-import { MemoryStorage } from '@miniflare/storage-memory'
 import { randomUUID } from 'crypto'
 
 // Define the environment interface
@@ -9,6 +8,11 @@ interface Env {
   CSV_BUCKET: R2Bucket;
   // Add this for Workers Sites
   // __STATIC_CONTENT: KVNamespace;
+  FRONT_HOST: string;
+  API_HOST: string;
+  DOWNLOAD_HOST: string;  // r2 host
+  FILE_FOLDER: string;    // r2 folder for temp files
+  MAX_FILE_SIZE: number;  // max file size in bytes
 }
 
 // Create a Hono app
@@ -17,12 +21,8 @@ const app = new Hono<{ Bindings: Env }>()
 // Add CORS middleware
 app.use('*', cors({
   origin: [
-    'http://localhost:8000', 
-    'http://localhost:8000',
-    'http://localhost:5173',
-    'https://csv-manager.zhangzhibin.workers.dev', 
-    'https://yourdomain.com',
-    'https://anotherdomain.com'
+    'https://tempcsv.com',
+    'http://localhost:8000'
   ],
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -50,7 +50,7 @@ app.use('*', async (c, next) => {
 })
 
 // Upload the .csv file to Cloudflare R2, and return the file url with a random generated name.
-app.post('/upload', async (c) => {
+app.post('/api/upload', async (c) => {
   try {
     console.log('Upload request received')
     
@@ -67,6 +67,11 @@ app.post('/upload', async (c) => {
     
     console.log('File received:', file.name, 'Size:', file.size)
     
+    if (file.size > c.env.MAX_FILE_SIZE) {
+      console.log('File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, uploaded file size is ' + file.size + ' bytes')
+      return c.json({ error: 'File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
+    }
+    
     // Generate a random file name
     const fileName = `${randomUUID()}.csv`
     console.log('Generated file name:', fileName)
@@ -75,7 +80,10 @@ app.post('/upload', async (c) => {
     const arrayBuffer = await file.arrayBuffer()
     console.log('File read into buffer, size:', arrayBuffer.byteLength)
     
-    await bucket.put(fileName, arrayBuffer, {
+    const targetFolder = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const targetFilePath = `${c.env.FILE_FOLDER}/${targetFolder}/${fileName}`
+
+    await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
         contentType: 'text/csv',
       }
@@ -83,7 +91,7 @@ app.post('/upload', async (c) => {
     console.log('File uploaded to R2 bucket')
     
     // In a real environment, you would construct a proper URL
-    const fileUrl = `/files/${fileName}`
+    const fileUrl = `${c.env.DOWNLOAD_HOST}/${targetFilePath}`
     
     return c.json({ success: true, fileUrl })
   } catch (error) {
@@ -92,61 +100,12 @@ app.post('/upload', async (c) => {
   }
 })
 
-// Save the .csv file to Cloudflare R2 with provided file url.
-app.post('/save', async (c) => {
-  try {
-    console.log('Save request received')
-    const { fileUrl } = await c.req.json()
-    
-    if (!fileUrl) {
-      console.log('No file URL provided')
-      return c.json({ error: 'No file URL provided' }, 400)
-    }
-    
-    // Extract the file name from the URL
-    const fileName = fileUrl.split('/').pop()
-    
-    if (!fileName) {
-      console.log('Invalid file URL format')
-      return c.json({ error: 'Invalid file URL format' }, 400)
-    }
-    
-    console.log('File name:', fileName)
-    
-    // Check if the file exists before proceeding
-    const fileExists = await bucket.head(fileName)
-    if (!fileExists) {
-      console.log('File not found:', fileName)
-      return c.json({ error: 'File not found. The URL may be invalid or the file has been deleted.' }, 404)
-    }
-    
-    // Get the file
-    const file = await bucket.get(fileName)
-    
-    if (!file) {
-      console.log('Failed to retrieve file:', fileName)
-      return c.json({ error: 'Failed to retrieve file' }, 500)
-    }
-    
-    const bodyArrayBuffer = await file.arrayBuffer()
-    console.log('File retrieved, size:', bodyArrayBuffer.byteLength)
-    
-    // We're not renaming, just confirming the file exists
-    return c.json({ 
-      success: true, 
-      message: 'File exists and is accessible',
-      fileUrl: `/files/${fileName}`
-    })
-  } catch (error) {
-    console.error('Save error:', error)
-    return c.json({ error: 'Failed to verify file' }, 500)
-  }
-})
-
 // Serve files from R2 storage
-app.get('/files/:fileName', async (c) => {
+app.get('/files/:folder/:fileName', async (c) => {
+  const folder = c.req.param('folder')
   const fileName = c.req.param('fileName')
-  const file = await bucket.get(fileName)
+  const targetFilePath = `${c.env.FILE_FOLDER}/${folder}/${fileName}`
+  const file = await bucket.get(targetFilePath)
   
   if (!file) {
     return c.json({ error: 'File not found' }, 404)
@@ -158,7 +117,7 @@ app.get('/files/:fileName', async (c) => {
   return new Response(arrayBuffer, {
     headers: {
       'Content-Type': file.httpMetadata?.contentType || 'text/csv',
-      'Content-Disposition': `attachment; filename="${fileName}"`
+      'Content-Disposition': `attachment; filename="${folder}/${fileName}"`
     }
   })
 })
@@ -169,52 +128,49 @@ app.get('/', (c) => {
 })
 
 // Update an existing file with a new version
-app.post('/update', async (c) => {
+
+app.post('/api/update/:folder/:fileName', async (c) => {
   try {
     console.log('Update request received')
     
+    const folder = c.req.param('folder')
+    const fileName = c.req.param('fileName')
+
     // Parse the multipart form data
     const body = await c.req.parseBody()
     console.log('Body parsed, keys:', Object.keys(body))
     
     // Get the file and fileUrl from the request
     const file = body.file
-    const fileUrl = body.fileUrl as string
-    
-    if (!fileUrl) {
-      console.log('No file URL provided')
-      return c.json({ error: 'No file URL provided' }, 400)
-    }
     
     if (!file || !(file instanceof File)) {
       console.log('No file found in the request or not a File object')
       return c.json({ error: 'No file uploaded' }, 400)
     }
     
-    // Extract the file name from the URL
-    const fileName = fileUrl.split('/').pop()
-    
-    if (!fileName) {
-      console.log('Invalid file URL format')
-      return c.json({ error: 'Invalid file URL format' }, 400)
-    }
-    
-    console.log('Updating file:', fileName)
+    const targetFilePath = `${c.env.FILE_FOLDER}/${folder}/${fileName}`
+        
+    console.log('Updating file:', targetFilePath)
     
     // Check if the file exists before proceeding
-    const fileExists = await bucket.head(fileName)
+    const fileExists = await bucket.head(targetFilePath)
     if (!fileExists) {
-      console.log('Original file not found:', fileName)
+      console.log('Original file not found:', targetFilePath)
       return c.json({ error: 'Original file not found. Cannot update a non-existent file.' }, 404)
     }
     
     console.log('File received:', file.name, 'Size:', file.size)
     
+    if (file.size > c.env.MAX_FILE_SIZE) {
+      console.log('File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, uploaded file size is ' + file.size + ' bytes')
+      return c.json({ error: 'File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
+    }
+    
     // Read the file and upload to R2 with the same name
     const arrayBuffer = await file.arrayBuffer()
     console.log('File read into buffer, size:', arrayBuffer.byteLength)
     
-    await bucket.put(fileName, arrayBuffer, {
+    await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
         contentType: 'text/csv',
       }
@@ -224,7 +180,7 @@ app.post('/update', async (c) => {
     return c.json({ 
       success: true, 
       message: 'File updated successfully',
-      fileUrl: `/files/${fileName}`
+      fileUrl: `${c.env.DOWNLOAD_HOST}/${targetFilePath}`
     })
   } catch (error) {
     console.error('Update error:', error)
@@ -240,7 +196,9 @@ app.get('/debug', async (c) => {
     return c.json({
       environment: process.env.NODE_ENV || 'unknown',
       bucketExists: !!bucket,
-      objectCount: objects.objects?.length || 0
+      objectCount: objects.objects?.length || 0,
+      fileFolder: c.env.FILE_FOLDER,
+      downloadHost: c.env.DOWNLOAD_HOST
     })
   } catch (error) {
     return c.json({

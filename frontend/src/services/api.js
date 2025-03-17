@@ -15,7 +15,7 @@ export async function uploadCsvFile(file) {
   
   console.log('Uploading file to server...')
   
-  const response = await fetch(`${API_BASE_URL}/upload`, {
+  const response = await fetch(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
     body: formData,
     // CORS options
@@ -79,7 +79,7 @@ export async function saveChangesToCsv(fileUrl, csvContent) {
   
   console.log('Saving changes to server...')
   
-  const response = await fetch(`${API_BASE_URL}/update`, {
+  const response = await fetch(`${API_BASE_URL}/api/update`, {
     method: 'POST',
     body: formData,
     // CORS options
@@ -223,7 +223,7 @@ export async function uploadCsvFileWithCorsRetry(file) {
   
   console.log('Uploading file with CORS retry...')
   
-  const response = await fetchWithCorsRetry(`${API_BASE_URL}/upload`, {
+  const response = await fetchWithCorsRetry(`${API_BASE_URL}/api/upload`, {
     method: 'POST',
     body: formData
   })
@@ -303,7 +303,7 @@ export async function saveChangesToCsvWithCorsRetry(fileUrl, csvContent) {
   
   console.log('Saving changes with CORS retry...')
   
-  const response = await fetchWithCorsRetry(`${API_BASE_URL}/update`, {
+  const response = await fetchWithCorsRetry(`${API_BASE_URL}/api/update`, {
     method: 'POST',
     body: formData
   })
