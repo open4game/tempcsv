@@ -2,6 +2,9 @@
 
 This is a simple online service, where you can upload, edit and share .csv files.
 
+**NOTE**
+This project is mainly developed with Cursor, it's more than an experimental than production-ready product.
+
 ## Features
 
 - Upload .csv files

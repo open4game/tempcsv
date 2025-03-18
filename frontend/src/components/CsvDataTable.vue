@@ -13,14 +13,19 @@ const props = defineProps({
     type: Array,
     required: true
   },
-  // Whether the table is in edit mode
+  // Whether the table could be edited
   editable: {
     type: Boolean,
     default: true
+  },
+  // Default edit mode (false for readonly by default)
+  defaultEditMode: {
+    type: Boolean,
+    default: false
   }
 })
 
-const emit = defineEmits(['cell-edited', 'edit-started', 'edit-cancelled'])
+const emit = defineEmits(['cell-edited', 'edit-started', 'edit-cancelled', 'edit-mode-changed'])
 
 // Table state
 const editedData = ref(null)
@@ -29,6 +34,9 @@ const editValue = ref('')
 const hoveredRow = ref(null)
 const hoveredColumn = ref(null)
 const selectedCells = ref([])
+
+// Edit mode state
+const editModeEnabled = ref(props.defaultEditMode)
 
 // Table refs and state
 const tableContainer = ref(null)
@@ -65,7 +73,8 @@ const columnLetters = computed(() => {
 
 // Start cell editing (now with double-click)
 const startEditing = (row, column, rowIndex, colIndex) => {
-  if (!props.editable) return
+  // Only allow editing if both editable prop is true and edit mode is enabled
+  if (!props.editable || !editModeEnabled.value) return
   
   // Adjust colIndex to account for the row index column
   currentEditCell.value = { row, column, rowIndex, colIndex: colIndex }
@@ -446,6 +455,24 @@ const stopResize = () => {
   document.removeEventListener('mouseup', stopResize)
 }
 
+// Toggle edit mode
+const toggleEditMode = () => {
+  editModeEnabled.value = !editModeEnabled.value
+  emit('edit-mode-changed', editModeEnabled.value)
+  
+  // If turning off edit mode with unsaved changes, prompt for confirmation
+  if (!editModeEnabled.value && editedData.value) {
+    const confirmDiscard = confirm('You have unsaved changes. Discard changes?')
+    if (confirmDiscard) {
+      editedData.value = null
+    } else {
+      // If user cancels, turn edit mode back on
+      editModeEnabled.value = true
+      emit('edit-mode-changed', editModeEnabled.value)
+    }
+  }
+}
+
 // Initialize component
 onMounted(() => {
   nextTick(() => {
@@ -507,7 +534,11 @@ defineExpose({
   hasHorizontalOverflow,
   hasVerticalOverflow,
   exportAsCSV,
-  copySelectedToClipboard
+  copySelectedToClipboard,
+  toggleEditMode,
+  isEditModeEnabled: () => editModeEnabled.value,
+  hasUnsavedChanges: () => !!editedData.value,
+  discardChanges: () => { editedData.value = null }
 })
 </script>
 
@@ -527,6 +558,19 @@ defineExpose({
       </div>
       
       <div class="d-flex align-center">
+        <!-- Edit mode toggle (only if editable is true) -->
+        <v-btn
+          v-if="editable"
+          :color="editModeEnabled ? 'warning' : 'success'"
+          variant="text"
+          size="small"
+          @click="toggleEditMode"
+          class="mr-2"
+        >
+          <v-icon start>{{ editModeEnabled ? 'mdi-pencil-off' : 'mdi-pencil' }}</v-icon>
+          {{ editModeEnabled ? 'Exit Edit Mode' : 'Enter Edit Mode' }}
+        </v-btn>
+        
         <!-- Export options -->
         <v-btn
           color="success"
@@ -642,10 +686,11 @@ defineExpose({
                 @click="toggleCellSelection(rowIndex, colIndex)"
                 class="editable-cell"
                 :class="{ 
-                  'not-editable': !editable,
+                  'not-editable': !editable || !editModeEnabled,
                   'hovered-column': hoveredColumn === colIndex,
                   'edited-cell': editedData && editedData[rowIndex] && editedData[rowIndex][column.field] !== row[column.field],
-                  'selected-cell': isCellSelected(rowIndex, colIndex)
+                  'selected-cell': isCellSelected(rowIndex, colIndex),
+                  'edit-mode-active': editModeEnabled && editable
                 }"
               >
                 <div v-if="currentEditCell && 
@@ -937,7 +982,12 @@ thead th.hovered-column {
   background-color: #e3f2fd !important; /* Solid light blue instead of semi-transparent */
 }
 
-/* Edit pencil icon */
+/* Edit mode active indicator */
+.edit-mode-active {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24'%3E%3Cpath fill='%23ff9800' d='M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z'/%3E%3C/svg%3E") 0 24, auto;
+}
+
+/* Edit pencil icon - only show when in edit mode */
 .editable-cell:hover:not(.not-editable)::after {
   content: '✏️';
   position: absolute;

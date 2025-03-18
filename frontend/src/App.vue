@@ -3,7 +3,6 @@ import { ref, computed } from 'vue'
 import CsvUploader from './components/CsvUploader.vue'
 import CustomTableViewer from './components/CustomTableViewer.vue'
 import AboutSection from './components/AboutSection.vue'
-import CorsToggle from './components/CorsToggle.vue'
 
 const lastUploadedFile = ref(null)
 const lastUpdatedFile = ref(null)
@@ -147,8 +146,9 @@ const copyToClipboard = () => {
               <v-col cols="12" class="text-center">
                 <h1 class="text-h3 font-weight-bold mb-6">Temp CSV Online</h1>
                 <p class="text-body-1 mb-8 mx-auto" style="max-width: 800px;">
-                  Upload, view, update, and download CSV files stored in Cloudflare R2.
-                  Your files are securely stored and easily accessible whenever you need them.
+                  Upload, view, update, and share CSV files online without registration.
+                  Your files are securely stored and easily accessible whenever you need them. 
+                  No login required!
                 </p>
                 
                 <!-- Main Upload Area -->
@@ -264,8 +264,8 @@ const copyToClipboard = () => {
                   <v-col cols="12" sm="4" md="4" class="feature-col">
                     <div class="feature-box">
                       <v-icon icon="mdi-shield-check" size="x-large" color="primary" class="mb-4"></v-icon>
-                      <h3 class="text-h6 mb-2">Secure Storage</h3>
-                      <p>Your CSV files are securely stored in Cloudflare R2 storage.</p>
+                      <h3 class="text-h6 mb-2">One click upload</h3>
+                      <p>Upload your CSV files with one click, no login required.</p>
                     </div>
                   </v-col>
                   <v-col cols="12" sm="4" md="4" class="feature-col">
@@ -282,6 +282,13 @@ const copyToClipboard = () => {
                       <p>Get permanent links to your files for easy sharing.</p>
                     </div>
                   </v-col>
+                  <v-col cols="12" sm="4" md="4" class="feature-col">
+                    <div class="feature-box">
+                      <v-icon icon="mdi-delete-clock" size="x-large" color="primary" class="mb-4"></v-icon>
+                      <h3 class="text-h6 mb-2">Auto Delete</h3>
+                      <p>Files are automatically deleted after 7 days for your privacy.</p>
+                    </div>
+                  </v-col>
                 </v-row>
               </v-col>
             </v-row>
@@ -291,11 +298,7 @@ const copyToClipboard = () => {
         <!-- CSV Viewer Tab -->
         <v-window-item value="viewer">
           <v-container class="py-8 app-container">
-            <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>
-            
-            <!-- CORS Toggle Component -->
-            <CorsToggle />
-            
+            <h2 class="text-h4 mb-6">CSV Viewer & Editor</h2>            
             <!-- File URL Input -->
             <v-card class="mb-6">
               <v-card-title>
@@ -393,7 +396,7 @@ const copyToClipboard = () => {
               <p class="text-body-1">
                 Please enter a CSV file URL above or select a file from the Recent Activity section.
               </p>
-            </div>
+    </div>
           </v-container>
         </v-window-item>
         
@@ -475,7 +478,7 @@ code {
 }
 
 .feature-col {
-  display: flex;
+    display: flex;
   justify-content: center;
 }
 

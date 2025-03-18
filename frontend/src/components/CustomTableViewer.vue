@@ -6,6 +6,7 @@ import CsvDirectLink from './CsvDirectLink.vue'
 import CsvDataTable from './CsvDataTable.vue'
 import { API_BASE_URL } from '../config'
 import { saveChangesToCsv } from '../services/api'
+import { parseCSV, convertToCSV, detectDelimiter } from '../utils/csvParser'
 
 const props = defineProps({
   fileUrl: {
@@ -26,6 +27,13 @@ const saving = ref(false)
 const saveSuccess = ref(false)
 const saveError = ref(null)
 const copySuccess = ref(false)
+const parserOptions = ref({
+  delimiter: '',
+  hasHeaders: true,
+  detectRowIndex: true,
+  skipEmptyLines: true,
+  dynamicTyping: true
+})
 
 // Table refs
 const dataTableRef = ref(null)
@@ -36,17 +44,24 @@ const showIframeViewer = ref(false)
 // Handle CSV data loaded from DirectCsvFetcher
 const handleCsvLoaded = (csvText) => {
   try {
-    const parsedData = parseCSV(csvText)
+    // Auto-detect delimiter
+    parserOptions.value.delimiter = detectDelimiter(csvText);
+    
+    // Parse CSV data using our enhanced parser
+    const parsedData = parseCSV(csvText, parserOptions.value);
     
     // Set columns and rows
-    columns.value = parsedData.columns
-    rows.value = parsedData.rows
+    columns.value = parsedData.columns;
+    rows.value = parsedData.rows;
     
-    loading.value = false
-    error.value = null
+    loading.value = false;
+    error.value = null;
   } catch (err) {
-    error.value = `Error parsing CSV: ${err.message}`
-    loading.value = false
+    error.value = `Error parsing CSV: ${err.message}`;
+    loading.value = false;
+    
+    // If we couldn't parse the CSV data, show the iframe viewer as a last resort
+    showIframeViewer.value = true;
   }
 }
 
@@ -59,73 +74,22 @@ const handleCsvError = (errorMessage) => {
   showIframeViewer.value = true
 }
 
-// Parse CSV data
-const parseCSV = (csvText) => {
-  try {
-    const lines = csvText.split('\n')
-    if (lines.length === 0) {
-      throw new Error('CSV file is empty')
-    }
-    
-    // Parse headers
-    const headers = lines[0].split(',').map(header => header.trim())
-    
-    // Create column definitions
-    const columnDefs = headers.map(header => ({
-      label: header,
-      field: header,
-      sortable: true
-    }))
-    
-    // Parse data rows
-    const parsedData = []
-    for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trim() === '') continue
-      
-      const values = lines[i].split(',')
-      const row = {}
-      
-      for (let j = 0; j < headers.length; j++) {
-        row[headers[j]] = values[j] ? values[j].trim() : ''
-      }
-      
-      parsedData.push(row)
-    }
-    
-    return {
-      columns: columnDefs,
-      rows: parsedData
-    }
-  } catch (err) {
-    console.error('Error parsing CSV:', err)
-    throw new Error('Failed to parse CSV data: ' + err.message)
-  }
+// Handle cell edited event from CsvDataTable
+const handleCellEdited = (editInfo) => {
+  editedData.value = editInfo.editedData
 }
 
-// Convert data to CSV
-const convertToCSV = (data) => {
-  if (!data || data.length === 0) return ''
-  
-  // Get headers from columns
-  const headers = columns.value.map(col => col.field)
-  
-  // Create CSV rows
-  const csvRows = []
-  
-  // Add header row
-  csvRows.push(headers.join(','))
-  
-  // Add data rows
-  for (const row of data) {
-    const values = headers.map(header => {
-      const val = row[header]
-      // Handle values with commas by wrapping in quotes
-      return typeof val === 'string' && val.includes(',') ? `"${val}"` : val
-    })
-    csvRows.push(values.join(','))
+// Handle edit mode changed event from CsvDataTable
+const handleEditModeChanged = (isEnabled) => {
+  // We could add additional logic here if needed
+  console.log('Edit mode changed:', isEnabled)
+}
+
+// Enable edit mode function
+const enableEditMode = () => {
+  if (dataTableRef.value) {
+    dataTableRef.value.toggleEditMode()
   }
-  
-  return csvRows.join('\n')
 }
 
 // Save changes
@@ -139,8 +103,10 @@ const saveChanges = async () => {
   saveSuccess.value = false
   
   try {
-    // Convert data back to CSV
-    const csvContent = convertToCSV(editedData.value)
+    // Convert data back to CSV using our enhanced parser
+    const csvContent = convertToCSV(editedData.value, columns.value, {
+      delimiter: parserOptions.value.delimiter
+    })
     
     // Use the direct API service to save changes
     const result = await saveChangesToCsv(props.fileUrl, csvContent)
@@ -196,9 +162,16 @@ const copyFileUrl = async () => {
   }
 }
 
-// Handle cell edited event from CsvDataTable
-const handleCellEdited = (editInfo) => {
-  editedData.value = editInfo.editedData
+// Change parser settings
+const updateParserSettings = (settings) => {
+  // Update parser options
+  Object.assign(parserOptions.value, settings)
+  
+  // Reload data using DirectCsvFetcher
+  loading.value = true
+  error.value = null
+  editedData.value = null
+  // The DirectCsvFetcher component will handle reloading the data
 }
 
 // Scroll to top function
@@ -256,6 +229,74 @@ watch(() => props.fileUrl, (newUrl, oldUrl) => {
             </v-btn>
           </div>
         </v-card>
+        
+        <!-- Parser settings -->
+        <v-expansion-panels class="mb-4" v-if="!loading && !error">
+          <v-expansion-panel>
+            <v-expansion-panel-title>
+              <v-icon start color="primary">mdi-cog</v-icon>
+              Parser Settings
+            </v-expansion-panel-title>
+            <v-expansion-panel-text>
+              <v-row>
+                <v-col cols="12" md="4">
+                  <v-select
+                    v-model="parserOptions.delimiter"
+                    label="Delimiter"
+                    :items="[
+                      { title: 'Auto-detect', value: '' },
+                      { title: 'Comma (,)', value: ',' },
+                      { title: 'Semicolon (;)', value: ';' },
+                      { title: 'Tab', value: '\t' },
+                      { title: 'Pipe (|)', value: '|' }
+                    ]"
+                    variant="outlined"
+                    density="comfortable"
+                  ></v-select>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-switch
+                    v-model="parserOptions.hasHeaders"
+                    label="Has Headers"
+                    color="primary"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-switch
+                    v-model="parserOptions.detectRowIndex"
+                    label="Detect Row Index"
+                    color="primary"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-switch
+                    v-model="parserOptions.skipEmptyLines"
+                    label="Skip Empty Lines"
+                    color="primary"
+                  ></v-switch>
+                </v-col>
+                <v-col cols="12" md="4">
+                  <v-switch
+                    v-model="parserOptions.dynamicTyping"
+                    label="Dynamic Typing"
+                    color="primary"
+                    hint="Auto-convert numbers and booleans"
+                    persistent-hint
+                  ></v-switch>
+                </v-col>
+              </v-row>
+              <v-btn
+                color="primary"
+                variant="outlined"
+                @click="updateParserSettings(parserOptions)"
+                class="mt-2"
+              >
+                <v-icon start>mdi-refresh</v-icon>
+                Apply Settings
+              </v-btn>
+            </v-expansion-panel-text>
+          </v-expansion-panel>
+        </v-expansion-panels>
         
         <!-- Direct link options -->
         <CsvDirectLink
@@ -318,13 +359,31 @@ watch(() => props.fileUrl, (newUrl, oldUrl) => {
             Click on any cell to edit its content. Changes will be highlighted and must be saved using the "Save Changes" button.
           </v-alert>
           
-          <!-- Use the new CsvDataTable component -->
+          <!-- Table stats -->
+          <div class="d-flex align-center mb-4">
+            <v-chip color="primary" size="small" class="mr-2">
+              <v-icon start size="x-small">mdi-table-column</v-icon>
+              {{ columns.length }} Columns
+            </v-chip>
+            <v-chip color="primary" size="small" class="mr-2">
+              <v-icon start size="x-small">mdi-table-row</v-icon>
+              {{ rows.length }} Rows
+            </v-chip>
+            <v-chip color="info" size="small">
+              <v-icon start size="x-small">mdi-format-list-bulleted</v-icon>
+              Delimiter: {{ parserOptions.delimiter === '\t' ? 'Tab' : parserOptions.delimiter }}
+            </v-chip>
+          </div>
+          
+          <!-- Use the CsvDataTable component -->
           <CsvDataTable
             ref="dataTableRef"
             :rows="rows"
             :columns="columns"
             :editable="true"
+            :defaultEditMode="false"
             @cell-edited="handleCellEdited"
+            @edit-mode-changed="handleEditModeChanged"
           />
           
           <div class="d-flex justify-end mt-4">
@@ -344,9 +403,20 @@ watch(() => props.fileUrl, (newUrl, oldUrl) => {
               :loading="saving"
               :disabled="!hasUnsavedChanges()"
               @click="saveChanges"
+              class="mr-2"
             >
               <v-icon start>mdi-content-save</v-icon>
               Save Changes
+            </v-btn>
+            
+            <v-btn
+              v-if="!dataTableRef?.isEditModeEnabled?.() && editable"
+              color="warning"
+              variant="tonal"
+              @click="enableEditMode"
+            >
+              <v-icon start>mdi-pencil</v-icon>
+              Enable Edit Mode
             </v-btn>
           </div>
         </div>
