@@ -3,6 +3,11 @@ import { cors } from 'hono/cors'
 import { R2Bucket } from '@miniflare/r2'
 import { randomUUID } from 'crypto'
 
+// Load environment variables in development
+if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+  require('dotenv').config()
+}
+
 // Define the environment interface
 interface Env {
   CSV_BUCKET: R2Bucket;
@@ -22,7 +27,9 @@ const app = new Hono<{ Bindings: Env }>()
 app.use('*', cors({
   origin: [
     'https://tempcsv.com',
-    'http://localhost:8000'
+    'http://localhost:8000',
+    'http://localhost:3001',  // Next.js frontend
+    'http://localhost:3000'   // Allow same-origin for testing
   ],
   allowHeaders: ['Content-Type', 'Authorization'],
   allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -49,6 +56,14 @@ app.use('*', async (c, next) => {
   await next()
 })
 
+// Helper function to get environment variables
+function getEnv(c: any, key: keyof Env): any {
+  if (typeof process !== 'undefined' && process.env.NODE_ENV === 'development') {
+    return process.env[key]
+  }
+  return c.env[key]
+}
+
 // Upload the .csv file to Cloudflare R2, and return the file url with a random generated name.
 app.post('/api/upload', async (c) => {
   try {
@@ -66,22 +81,24 @@ app.post('/api/upload', async (c) => {
     }
     
     console.log('File received:', file.name, 'Size:', file.size)
-    
-    if (file.size > c.env.MAX_FILE_SIZE) {
-      console.log('File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, uploaded file size is ' + file.size + ' bytes')
-      return c.json({ error: 'File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
+
+    const maxFileSize = Number(getEnv(c, 'MAX_FILE_SIZE'))
+    if (file.size > maxFileSize) {
+      console.log('File size exceeds the maximum limit: ' + maxFileSize + ' bytes, uploaded file size is ' + file.size + ' bytes')
+      return c.json({ error: 'File size exceeds the maximum limit: ' + maxFileSize + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
     }
-    
+
     // Generate a random file name
     const fileName = `${randomUUID()}.csv`
     console.log('Generated file name:', fileName)
-    
+
     // Read the file and upload to R2
     const arrayBuffer = await file.arrayBuffer()
     console.log('File read into buffer, size:', arrayBuffer.byteLength)
-    
+
     const targetFolder = new Date().toISOString().slice(0, 10).replace(/-/g, '')
-    const targetFilePath = `${c.env.FILE_FOLDER}/${targetFolder}/${fileName}`
+    const fileFolder = getEnv(c, 'FILE_FOLDER')
+    const targetFilePath = `${fileFolder}/${targetFolder}/${fileName}`
 
     await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
@@ -89,9 +106,10 @@ app.post('/api/upload', async (c) => {
       }
     })
     console.log('File uploaded to R2 bucket')
-    
+
     // In a real environment, you would construct a proper URL
-    const fileUrl = `${c.env.DOWNLOAD_HOST}/${targetFilePath}`
+    const downloadHost = getEnv(c, 'DOWNLOAD_HOST')
+    const fileUrl = `${downloadHost}/files/${targetFolder}/${fileName}`
     
     return c.json({ success: true, fileUrl })
   } catch (error) {
@@ -104,7 +122,8 @@ app.post('/api/upload', async (c) => {
 app.get('/files/:folder/:fileName', async (c) => {
   const folder = c.req.param('folder')
   const fileName = c.req.param('fileName')
-  const targetFilePath = `${c.env.FILE_FOLDER}/${folder}/${fileName}`
+  const fileFolder = getEnv(c, 'FILE_FOLDER')
+  const targetFilePath = `${fileFolder}/${folder}/${fileName}`
   const file = await bucket.get(targetFilePath)
   
   if (!file) {
@@ -147,8 +166,9 @@ app.post('/api/update/:folder/:fileName', async (c) => {
       console.log('No file found in the request or not a File object')
       return c.json({ error: 'No file uploaded' }, 400)
     }
-    
-    const targetFilePath = `${c.env.FILE_FOLDER}/${folder}/${fileName}`
+
+    const fileFolder = getEnv(c, 'FILE_FOLDER')
+    const targetFilePath = `${fileFolder}/${folder}/${fileName}`
         
     console.log('Updating file:', targetFilePath)
     
@@ -160,27 +180,29 @@ app.post('/api/update/:folder/:fileName', async (c) => {
     }
     
     console.log('File received:', file.name, 'Size:', file.size)
-    
-    if (file.size > c.env.MAX_FILE_SIZE) {
-      console.log('File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, uploaded file size is ' + file.size + ' bytes')
-      return c.json({ error: 'File size exceeds the maximum limit: ' + c.env.MAX_FILE_SIZE + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
+
+    const maxFileSize = Number(getEnv(c, 'MAX_FILE_SIZE'))
+    if (file.size > maxFileSize) {
+      console.log('File size exceeds the maximum limit: ' + maxFileSize + ' bytes, uploaded file size is ' + file.size + ' bytes')
+      return c.json({ error: 'File size exceeds the maximum limit: ' + maxFileSize + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
     }
-    
+
     // Read the file and upload to R2 with the same name
     const arrayBuffer = await file.arrayBuffer()
     console.log('File read into buffer, size:', arrayBuffer.byteLength)
-    
+
     await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
         contentType: 'text/csv',
       }
     })
     console.log('File updated in R2 bucket')
-    
-    return c.json({ 
-      success: true, 
+
+    const downloadHost = getEnv(c, 'DOWNLOAD_HOST')
+    return c.json({
+      success: true,
       message: 'File updated successfully',
-      fileUrl: `${c.env.DOWNLOAD_HOST}/${targetFilePath}`
+      fileUrl: `${downloadHost}/files/${folder}/${fileName}`
     })
   } catch (error) {
     console.error('Update error:', error)
@@ -193,12 +215,14 @@ app.get('/debug', async (c) => {
   try {
     // List objects in the bucket
     const objects = await bucket.list()
+    const fileFolder = getEnv(c, 'FILE_FOLDER')
+    const downloadHost = getEnv(c, 'DOWNLOAD_HOST')
     return c.json({
       environment: process.env.NODE_ENV || 'unknown',
       bucketExists: !!bucket,
       objectCount: objects.objects?.length || 0,
-      fileFolder: c.env.FILE_FOLDER,
-      downloadHost: c.env.DOWNLOAD_HOST
+      fileFolder: fileFolder,
+      downloadHost: downloadHost
     })
   } catch (error) {
     return c.json({
