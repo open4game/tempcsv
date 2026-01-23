@@ -1,21 +1,14 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  output: 'export', // Static export for Cloudflare Pages
+  images: {
+    unoptimized: true, // Cloudflare Pages doesn't support Next.js Image Optimization
+  },
+  trailingSlash: true, // Ensure routes work correctly
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'https://tempcsv.com/api',
     NEXT_PUBLIC_DOWNLOAD_HOST: process.env.NEXT_PUBLIC_DOWNLOAD_HOST || 'https://my.tempcsv.com',
-  },
-  async rewrites() {
-    // Only proxy in development when backend is running on localhost:3000
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: 'http://localhost:3000/api/:path*',
-        },
-      ];
-    }
-    return [];
   },
 }
 

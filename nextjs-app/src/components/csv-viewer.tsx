@@ -67,7 +67,7 @@ export function CsvViewer({ fileUrl, file, title }: CsvViewerProps) {
             }
             setLoading(false);
           },
-          error: (err) => {
+          error: (err: any) => {
             setError(`Failed to parse CSV: ${err.message}`);
             setLoading(false);
           },
