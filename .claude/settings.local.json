@@ -3,7 +3,8 @@
     "allow": [
       "Bash(npm run build:*)",
       "Bash(git add:*)",
-      "Bash(git commit -m \"$\\(cat <<''EOF''\nConfigure Next.js for Cloudflare Pages deployment\n\nChanges:\n- Enable static export mode \\(output: ''export''\\)\n- Disable image optimization for Cloudflare compatibility\n- Add trailing slash for proper routing\n- Fix TypeScript error in csv-viewer component\n- Add comprehensive Cloudflare deployment guide\n\nBuild output verified:\n- Static HTML files generated in out/ directory\n- All routes properly exported \\(/, /about, /viewer\\)\n- Ready for Cloudflare Pages deployment\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nConfigure Next.js for Cloudflare Pages deployment\n\nChanges:\n- Enable static export mode \\(output: ''export''\\)\n- Disable image optimization for Cloudflare compatibility\n- Add trailing slash for proper routing\n- Fix TypeScript error in csv-viewer component\n- Add comprehensive Cloudflare deployment guide\n\nBuild output verified:\n- Static HTML files generated in out/ directory\n- All routes properly exported \\(/, /about, /viewer\\)\n- Ready for Cloudflare Pages deployment\n\nCo-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git commit:*)"
     ]
   }
 }

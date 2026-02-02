@@ -109,7 +109,7 @@ app.post('/api/upload', async (c) => {
 
     // In a real environment, you would construct a proper URL
     const downloadHost = getEnv(c, 'DOWNLOAD_HOST')
-    const fileUrl = `${downloadHost}/files/${targetFolder}/${fileName}`
+    const fileUrl = `${downloadHost}/${targetFilePath}`
     
     return c.json({ success: true, fileUrl })
   } catch (error) {

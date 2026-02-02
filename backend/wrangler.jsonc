@@ -12,7 +12,7 @@
     }
   ],
   "assets": {
-    "directory": "../frontend/dist",
+    "directory": "../nextjs-app/out",
     "binding": "ASSETS"
   },
   "vars": {
@@ -20,7 +20,7 @@
     "API_HOST": "https://tempcsv.com",
     "DOWNLOAD_HOST": "https://my.tempcsv.com",
     "FILE_FOLDER": "f",
-    "MAX_FILE_SIZE": 102400 // 100KB
+    "MAX_FILE_SIZE": 10485760 // 10MB
   }  
   // "compatibility_flags": [
   //   "nodejs_compat"
