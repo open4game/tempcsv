@@ -46,7 +46,7 @@ function ViewerContent() {
               Home
             </Link>
             <Link href="/viewer" className="hover:underline">
-              CSV Viewer
+              Table Viewer
             </Link>
             <Link href="/about" className="hover:underline">
               About
@@ -66,21 +66,21 @@ function ViewerContent() {
       {/* Main Content */}
       <main className="flex-1">
         <div className="container mx-auto px-4 py-8">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">CSV Viewer</h2>
+          <h2 className="text-3xl md:text-4xl font-bold mb-6">Table Viewer</h2>
 
           {/* File URL Input */}
           <Card className="mb-6">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <FileSearch className="h-5 w-5" />
-                Enter CSV File URL
+                Enter file URL
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-col md:flex-row gap-4">
                 <Input
                   type="url"
-                  placeholder="https://.../files/folder/file.csv (or .xlsx, .tsv, .ods)"
+                  placeholder="https://.../files/folder/file.csv or .xlsx, .tsv, .ods"
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLoadFile()}
@@ -100,16 +100,16 @@ function ViewerContent() {
             </CardContent>
           </Card>
 
-          {/* CSV Viewer */}
+          {/* Table Viewer */}
           {fileUrl ? (
             <CsvViewer fileUrl={fileUrl} />
           ) : (
             <Card>
               <CardContent className="flex flex-col items-center justify-center py-12 text-center">
                 <FileSearch className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No File Selected</h3>
+                <h3 className="text-xl font-semibold mb-2">No file selected</h3>
                 <p className="text-muted-foreground">
-                  Please enter a CSV file URL above to view its contents.
+                  Enter a table file URL above (CSV, TSV, Excel, or ODS) to view its contents.
                 </p>
               </CardContent>
             </Card>
@@ -124,7 +124,7 @@ function ViewerContent() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Temp CSV</h3>
               <p className="text-sm text-muted-foreground">
-                Upload, view, and share CSV files online.
+                Upload, view, and share table files (CSV, TSV, Excel, ODS) online.
               </p>
             </div>
             <div className="text-center">

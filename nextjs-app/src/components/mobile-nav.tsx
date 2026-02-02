@@ -34,7 +34,7 @@ export function MobileNav() {
               className="py-2 hover:underline"
               onClick={() => setIsOpen(false)}
             >
-              CSV Viewer
+              Table Viewer
             </Link>
             <Link
               href="/about"

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { Github, Upload, Eye, Shield, Cloud, Link as LinkIcon, Clock } from 'lucide-react';
+import { Github, Upload, Eye, Mail, Link as LinkIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export default function AboutPage() {
@@ -16,7 +16,7 @@ export default function AboutPage() {
               Home
             </Link>
             <Link href="/viewer" className="hover:underline">
-              CSV Viewer
+              Table Viewer
             </Link>
             <Link href="/about" className="hover:underline">
               About
@@ -40,8 +40,8 @@ export default function AboutPage() {
 
           <div className="prose prose-lg max-w-none">
             <p className="text-xl text-muted-foreground mb-8">
-              Temp CSV is a simple online service where you can upload, view, and share CSV files
-              without any registration or login required.
+              Temp CSV is a simple online service where you can upload, view, and share table files
+              (CSV, TSV, Excel .xlsx/.xls, ODS) without any registration or login. Multi-sheet Excel supported.
             </p>
 
             <Card className="mb-8">
@@ -52,9 +52,9 @@ export default function AboutPage() {
                 <div className="flex items-start gap-4">
                   <Upload className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">Upload CSV Files</h3>
+                    <h3 className="font-semibold mb-1">Upload table files</h3>
                     <p className="text-muted-foreground">
-                      Easily upload your CSV files with drag-and-drop or file selection.
+                      Upload CSV, TSV, Excel, or ODS with drag-and-drop or file selection.
                     </p>
                   </div>
                 </div>
@@ -62,9 +62,9 @@ export default function AboutPage() {
                 <div className="flex items-start gap-4">
                   <Eye className="h-6 w-6 text-primary flex-shrink-0 mt-1" />
                   <div>
-                    <h3 className="font-semibold mb-1">View CSV Files</h3>
+                    <h3 className="font-semibold mb-1">View tables</h3>
                     <p className="text-muted-foreground">
-                      View your CSV files in a clean, organized table format with pagination.
+                      View tables in a clean format with pagination; switch sheets for multi-sheet Excel.
                     </p>
                   </div>
                 </div>
@@ -108,6 +108,35 @@ export default function AboutPage() {
               </CardContent>
             </Card>
 
+            <Card className="mb-8">
+              <CardHeader>
+                <CardTitle>Contact & Feedback</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-muted-foreground mb-4">
+                  Send feedback by email or open an issue on GitHub.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <a
+                    href="mailto:service@tempcsv.com"
+                    className="inline-flex items-center gap-2 text-primary hover:underline"
+                  >
+                    <Mail className="h-5 w-5" />
+                    <span>service@tempcsv.com</span>
+                  </a>
+                  <a
+                    href="https://github.com/open4game/tempcsv/issues"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-2 text-primary hover:underline"
+                  >
+                    <Github className="h-5 w-5" />
+                    <span>Submit an issue on GitHub</span>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+
             <Card>
               <CardHeader>
                 <CardTitle>Open Source</CardTitle>
@@ -139,7 +168,7 @@ export default function AboutPage() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Temp CSV</h3>
               <p className="text-sm text-muted-foreground">
-                Upload, view, and share CSV files online.
+                Upload, view, and share table files (CSV, TSV, Excel, ODS) online.
               </p>
             </div>
             <div className="text-center">

@@ -1,31 +1,28 @@
-# Temp CSV - Next.js Version
+# Temp CSV - Next.js App
 
-A modern web application for uploading, viewing, and sharing CSV files online. Built with Next.js, React, and TypeScript.
+Web app for uploading, viewing, and sharing table files (CSV, TSV, Excel, ODS) online. Built with Next.js, React, and TypeScript.
+
+**Try online:** [https://tempcsv.com](https://tempcsv.com)
 
 ## Features
 
-- **Upload CSV Files**: Drag-and-drop or select CSV files to upload
-- **View CSV Data**: View CSV files in a clean, paginated table format
-- **Share Files**: Get shareable links to your uploaded files
-- **Mobile Friendly**: Fully responsive design optimized for mobile devices
-- **No Registration**: Use the service without any login or registration
-- **Auto Delete**: Files are automatically deleted after 7 days
+- **Upload**: CSV, TSV, Excel (.xlsx, .xls), ODS — drag-and-drop or file picker
+- **View**: Paginated table; multi-sheet Excel with sheet switcher; max 100 columns shown to avoid browser overload
+- **Share**: Shareable links; no registration
+- **Auto delete**: Files removed after 7 days
+- **Mobile**: Responsive layout, touch-friendly
 
 ## Tech Stack
 
 ### Frontend
-- **Next.js 14** - React framework with App Router
-- **React 18** - UI library
-- **TypeScript** - Type safety
-- **Tailwind CSS** - Utility-first CSS framework
-- **shadcn/ui** - High-quality UI components
-- **Lucide React** - Icon library
-- **PapaCSV** - CSV parsing library
+
+- Next.js 14 (App Router), React 18, TypeScript
+- Tailwind CSS, shadcn/ui, Lucide React
+- PapaParse (CSV/TSV), SheetJS / xlsx (Excel, ODS)
 
 ### Backend
-- **Hono** - Lightweight web framework (Cloudflare Workers)
-- **Cloudflare R2** - Object storage
-- **Cloudflare Workers** - Serverless compute
+
+- Hono on Cloudflare Workers, Cloudflare R2
 
 ## Getting Started
 
@@ -36,133 +33,92 @@ A modern web application for uploading, viewing, and sharing CSV files online. B
 
 ### Installation
 
-1. Clone the repository:
+1. Clone and enter the app:
+
 ```bash
 git clone https://github.com/open4game/tempcsv.git
 cd tempcsv/nextjs-app
 ```
 
 2. Install dependencies:
+
 ```bash
 npm install
 ```
 
-3. Create a `.env.local` file:
+3. Create `.env.local`:
+
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:3000/api
 NEXT_PUBLIC_DOWNLOAD_HOST=http://localhost:3000
 ```
 
-4. Run the development server:
+4. Run the dev server:
+
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000) in your browser.
+5. Open **http://localhost:3001** in your browser (frontend). Use port 3001; the API runs on 3000.
+
+To run both frontend and backend from repo root: `./start-dev.sh`.
 
 ## Project Structure
 
 ```
 nextjs-app/
 ├── src/
-│   ├── app/                 # Next.js App Router pages
-│   │   ├── page.tsx        # Home page
-│   │   ├── viewer/         # CSV viewer page
-│   │   ├── about/          # About page
-│   │   ├── layout.tsx      # Root layout
-│   │   └── globals.css     # Global styles
-│   ├── components/         # React components
-│   │   ├── ui/            # shadcn/ui components
+│   ├── app/              # App Router
+│   │   ├── page.tsx      # Home
+│   │   ├── viewer/       # Table viewer (by URL)
+│   │   ├── about/        # About & contact
+│   │   ├── layout.tsx
+│   │   └── globals.css
+│   ├── components/
+│   │   ├── ui/           # shadcn/ui
 │   │   ├── csv-uploader.tsx
 │   │   └── csv-viewer.tsx
-│   └── lib/               # Utility functions
-│       ├── api.ts         # API client
-│       └── utils.ts       # Helper functions
-├── public/                # Static assets
+│   └── lib/
+│       ├── api.ts        # API client
+│       ├── tableFormats.ts
+│       ├── tableParser.ts
+│       └── utils.ts
+├── public/
 ├── package.json
-├── tsconfig.json
+├── next.config.js
 ├── tailwind.config.ts
-└── next.config.js
+└── tsconfig.json
 ```
 
-## Building for Production
+## Build & Deploy
 
 ```bash
 npm run build
 npm start
 ```
 
-## Deployment
+- **Cloudflare Pages**: Build command `npm run build`, output `.next` (or use static export per `next.config.js`). Set `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_DOWNLOAD_HOST`.
+- **Vercel**: Import repo; set env vars in dashboard.
 
-### Cloudflare Pages
+## Backend
 
-1. Connect your GitHub repository to Cloudflare Pages
-2. Set build command: `npm run build`
-3. Set build output directory: `.next`
-4. Add environment variables:
-   - `NEXT_PUBLIC_API_URL`: Your API endpoint
-   - `NEXT_PUBLIC_DOWNLOAD_HOST`: Your R2 download host
+Backend is the Hono API in `../backend`, deployed to Cloudflare Workers. Ensure CORS, R2 bucket, and `wrangler.jsonc` vars are set.
 
-### Vercel
+## API (used by this app)
 
-1. Import your GitHub repository to Vercel
-2. Vercel will auto-detect Next.js and configure build settings
-3. Add environment variables in Vercel dashboard
+- `POST /api/upload` – Upload file; returns `{ fileUrl }`.
+- `GET /files/:folder/:fileName` – Download file.
 
-## Backend Setup
+## Contact & Feedback
 
-The backend uses the existing Hono API deployed on Cloudflare Workers. No changes are needed to the backend code.
-
-Ensure your backend is configured with:
-- CORS enabled for your frontend domain
-- R2 bucket properly configured
-- Environment variables set in `wrangler.jsonc`
-
-## Mobile Optimization
-
-This application is fully optimized for mobile devices:
-- Responsive layout using Tailwind CSS breakpoints
-- Touch-friendly UI elements
-- Mobile-first design approach
-- Optimized table viewing on small screens
-- Native share API support on mobile browsers
-
-## API Endpoints
-
-The frontend connects to these backend endpoints:
-
-- `POST /api/upload` - Upload a CSV file
-- `POST /api/update/:folder/:fileName` - Update an existing file
-- `GET /files/:folder/:fileName` - Download a file
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+- **Email**: service@tempcsv.com  
+- **GitHub Issues**: https://github.com/open4game/tempcsv/issues  
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT.
 
 ## Acknowledgments
 
-- Built with [Next.js](https://nextjs.org/)
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
-- Icons from [Lucide](https://lucide.dev/)
-- CSV parsing by [PapaCSV](https://www.papaparse.com/)
-
-## Migration from Vue
-
-This is a complete rewrite of the original Vue.js version. Key changes:
-
-- **Framework**: Vue 3 → Next.js 14 with React
-- **UI Library**: Vuetify → shadcn/ui + Tailwind CSS
-- **Routing**: Vue Router → Next.js App Router
-- **State Management**: Vue Composition API → React Hooks
-- **Removed Features**: Editing functionality (as per requirements)
-- **Enhanced**: Better mobile responsiveness and modern UI
-
-## Support
-
-For issues, questions, or contributions, please visit:
-- GitHub: https://github.com/open4game/tempcsv
-- Issues: https://github.com/open4game/tempcsv/issues
+- [Next.js](https://nextjs.org/), [shadcn/ui](https://ui.shadcn.com/), [Lucide](https://lucide.dev/)
+- [PapaParse](https://www.papaparse.com/) (CSV/TSV), [SheetJS](https://sheetjs.com/) (Excel/ODS)

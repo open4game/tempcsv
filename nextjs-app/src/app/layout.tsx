@@ -5,8 +5,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Temp CSV - Upload, View & Share CSV Files Online",
-  description: "Upload, view, and share CSV files online without registration. Simple, fast, and secure.",
+  title: "Temp CSV - Upload, View & Share Table Files (CSV, Excel, ODS) Online",
+  description: "Upload, view, and share CSV, TSV, Excel (.xlsx, .xls), and ODS files online without registration. Multi-sheet support, no login required.",
 };
 
 export default function RootLayout({

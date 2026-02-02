@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Github, Upload, Eye, Info, Shield, Cloud, Link as LinkIcon, Clock } from 'lucide-react';
+import { Github, Upload, Eye, Info, Shield, Link as LinkIcon, Clock } from 'lucide-react';
 import { CsvUploader } from '@/components/csv-uploader';
 import { MobileNav } from '@/components/mobile-nav';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,7 +29,7 @@ export default function Home() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'View CSV File',
+          title: 'View table file',
           url: shareUrl,
         });
       } catch (err) {
@@ -56,7 +56,7 @@ export default function Home() {
               Home
             </Link>
             <Link href="/viewer" className="hover:underline">
-              CSV Viewer
+              Table Viewer
             </Link>
             <Link href="/about" className="hover:underline">
               About
@@ -82,15 +82,14 @@ export default function Home() {
           <div className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold mb-4">Temp CSV Online</h1>
             <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto">
-              Upload, view, and share CSV files online without registration.
-              Your files are securely stored and easily accessible whenever you need them.
-              No login required!
+              Upload, view, and share table files (CSV, TSV, Excel, ODS) online without registration.
+              Multi-sheet Excel support. No login required!
             </p>
           </div>
 
           {/* Upload Section */}
           <div className="mb-12">
-            <h2 className="text-2xl font-semibold mb-4 text-center">Upload your CSV file</h2>
+            <h2 className="text-2xl font-semibold mb-4 text-center">Upload your table file</h2>
             <CsvUploader onFileUploaded={handleFileUploaded} onViewFile={handleViewFile} />
           </div>
 
@@ -143,23 +142,13 @@ export default function Home() {
           )}
 
           {/* Features Section */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-16">
             <Card>
               <CardContent className="pt-6 text-center">
                 <Shield className="h-12 w-12 mx-auto mb-4 text-primary" />
                 <h3 className="text-lg font-semibold mb-2">One Click Upload</h3>
                 <p className="text-sm text-muted-foreground">
-                  Upload your CSV files with one click, no login required.
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6 text-center">
-                <Cloud className="h-12 w-12 mx-auto mb-4 text-primary" />
-                <h3 className="text-lg font-semibold mb-2">Easy Updates</h3>
-                <p className="text-sm text-muted-foreground">
-                  Update your files anytime while keeping the same URL.
+                  Upload CSV, TSV, Excel, or ODS files with one click, no login required.
                 </p>
               </CardContent>
             </Card>
@@ -194,7 +183,7 @@ export default function Home() {
             <div>
               <h3 className="text-lg font-semibold mb-2">Temp CSV</h3>
               <p className="text-sm text-muted-foreground">
-                Upload, view, and share CSV files online.
+                Upload, view, and share table files (CSV, TSV, Excel, ODS) online.
               </p>
             </div>
             <div className="text-center">

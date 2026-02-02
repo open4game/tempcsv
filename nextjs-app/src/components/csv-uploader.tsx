@@ -111,7 +111,7 @@ export function CsvUploader({ onFileUploaded, onViewFile }: CsvUploaderProps) {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'View CSV File',
+          title: 'View table file',
           url: shareUrl,
         });
         setShareSuccess(true);

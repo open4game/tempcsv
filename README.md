@@ -1,49 +1,56 @@
-# About TempCvs
+# About Temp CSV
 
-This is a simple online service, where you can upload, edit and share .csv files.
+A simple online service to upload, view, and share table files (CSV, TSV, Excel, ODS) without registration.
 
-**NOTE**
-This project is mainly developed with Cursor, it's more than an experimental than production-ready product.
+**Live:** [https://tempcsv.com](https://tempcsv.com)
+
+**NOTE**  
+This project is mainly developed with Cursor; it is more experimental than production-ready.
 
 ## Features
 
-- Upload .csv files
-- Edit .csv files
-- Share .csv files
+- **Upload** table files: CSV, TSV, Excel (.xlsx, .xls), ODS
+- **View** tables online with pagination; multi-sheet Excel support with sheet switcher
+- **Share** files via links (files auto-deleted after 7 days)
+- No login or registration required
 
 ## Tech Stack
 
-- Vue.js
-- Tailwind CSS
-- Vite
-- Hono
-- Cloudflare R2
-- Cloudflare Page
-- Cloudflare Workers
+- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, shadcn/ui (see `nextjs-app/`)
+- **Backend**: Hono on Cloudflare Workers
+- **Storage**: Cloudflare R2 (no database)
 
 ## Frontend
 
-Use Vue.js as the frontend framework. Deployed on Cloudflare Page.
+Next.js app in `nextjs-app/`. Deployed on Cloudflare Pages (or Vercel).
 
-View and edit the .csv file online.
-
-Default entry point is `https://tempcsv.com`.
+- Entry: `https://tempcsv.com`
 
 ## Backend
 
-Use Hono as the backend framework, providing uploading and saving services. Deployed on Cloudflare Workers.
+Hono API on Cloudflare Workers.
 
-- upload: upload the .csv file to Cloudflare R2, and return the file url with a random generated name.
-- save: save the .csv file to Cloudflare R2 with provided file url.
+- `POST /api/upload` – Upload a file to R2; returns file URL (original extension preserved).
+- `GET /files/:folder/:fileName` – Download a file.
 
-Default entry point is `https://tempcsv.com/api/`.
+API entry: `https://tempcsv.com/api/`.
 
 ## Download
 
-Download the .csv file from Cloudflare R2 with provided file url.
+Files are served from R2. Download entry: `https://my.tempcsv.com/<file_path>`.
 
-Default download entry point is `https://my.tempcsv.com/<file_path>`.
+## Development
 
-## Database
+From repo root:
 
-No database is used, all data are stored in Cloudflare R2 for simplicity.
+```bash
+./start-dev.sh
+```
+
+- Frontend (open in browser): http://localhost:3001  
+- Backend API: http://localhost:3000  
+
+## Contact & Feedback
+
+- Email: service@tempcsv.com  
+- GitHub Issues: https://github.com/open4game/tempcsv/issues  
