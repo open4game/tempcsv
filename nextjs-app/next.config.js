@@ -1,7 +1,8 @@
 /** @type {import('next').NextConfig} */
+// 仅在生产构建时使用静态导出（Cloudflare）；dev 时不用，否则 next dev 会 404 _next/static
 const nextConfig = {
   reactStrictMode: true,
-  output: 'export', // Static export for Cloudflare Pages
+  ...(process.env.NODE_ENV === 'production' && { output: 'export' }),
   images: {
     unoptimized: true, // Cloudflare Pages doesn't support Next.js Image Optimization
   },

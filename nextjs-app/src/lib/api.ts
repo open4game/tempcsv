@@ -21,6 +21,7 @@ export class ApiError extends Error {
 export async function uploadCsvFile(file: File): Promise<UploadResponse> {
   const formData = new FormData();
   formData.append('file', file);
+  formData.append('filename', file.name || '');
 
   const response = await fetch(`${API_URL}/upload`, {
     method: 'POST',
@@ -65,8 +66,19 @@ export async function fetchCsvFile(fileUrl: string): Promise<string> {
   const response = await fetch(fileUrl);
 
   if (!response.ok) {
-    throw new ApiError(response.status, 'Failed to fetch CSV file');
+    throw new ApiError(response.status, 'Failed to fetch file');
   }
 
   return response.text();
+}
+
+/** Fetch file as ArrayBuffer (for XLSX/XLS/ODS). */
+export async function fetchFileAsArrayBuffer(fileUrl: string): Promise<ArrayBuffer> {
+  const response = await fetch(fileUrl);
+
+  if (!response.ok) {
+    throw new ApiError(response.status, 'Failed to fetch file');
+  }
+
+  return response.arrayBuffer();
 }

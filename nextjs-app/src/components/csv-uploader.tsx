@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { uploadCsvFile, type UploadResponse } from '@/lib/api';
 import { CsvViewer } from '@/components/csv-viewer';
 import { cn } from '@/lib/utils';
+import { getExtension, isSupportedExtension, ACCEPT_UPLOAD } from '@/lib/tableFormats';
 
 interface CsvUploaderProps {
   onFileUploaded?: (result: UploadResponse) => void;
@@ -24,12 +25,17 @@ export function CsvUploader({ onFileUploaded, onViewFile }: CsvUploaderProps) {
   const [shareSuccess, setShareSuccess] = useState(false);
 
   const processFile = useCallback((selectedFile: File | null) => {
-    if (selectedFile && selectedFile.type === 'text/csv') {
+    if (!selectedFile) {
+      setFile(null);
+      return;
+    }
+    const ext = getExtension(selectedFile.name);
+    if (isSupportedExtension(ext)) {
       setFile(selectedFile);
       setErrorMessage('');
     } else {
       setFile(null);
-      setErrorMessage('Please select a valid CSV file');
+      setErrorMessage('Please select a CSV, TSV, XLSX, XLS or ODS file');
     }
   }, []);
 
@@ -282,14 +288,15 @@ export function CsvUploader({ onFileUploaded, onViewFile }: CsvUploaderProps) {
       <div className="max-w-2xl mx-auto w-full">
         <Upload className="w-16 h-16 mx-auto mb-6 text-primary" />
 
-        <h3 className="text-2xl font-semibold mb-4">Drop your CSV file here</h3>
+        <h3 className="text-2xl font-semibold mb-4">Drop your table file here</h3>
+        <p className="text-sm text-muted-foreground mb-2">CSV, TSV, XLSX, XLS, ODS</p>
 
         <p className="text-lg mb-4">or</p>
 
         <div className="mb-6">
           <input
             type="file"
-            accept=".csv"
+            accept={ACCEPT_UPLOAD}
             onChange={handleFileChange}
             className="hidden"
             id="file-upload"
@@ -298,7 +305,7 @@ export function CsvUploader({ onFileUploaded, onViewFile }: CsvUploaderProps) {
             <Button variant="outline" size="lg" className="cursor-pointer" asChild>
               <span>
                 <FileUp className="mr-2 h-5 w-5" />
-                Select CSV file
+                Select file
               </span>
             </Button>
           </label>
@@ -311,7 +318,7 @@ export function CsvUploader({ onFileUploaded, onViewFile }: CsvUploaderProps) {
         )}
 
         <p className="text-sm text-muted-foreground mt-6">
-          You'll be able to preview all data before uploading
+          Supported: CSV, TSV, Excel (.xlsx, .xls), ODS. Preview before uploading.
         </p>
       </div>
     </div>

@@ -80,7 +80,7 @@ function ViewerContent() {
               <div className="flex flex-col md:flex-row gap-4">
                 <Input
                   type="url"
-                  placeholder="https://example.com/files/your-file.csv"
+                  placeholder="https://.../files/folder/file.csv (or .xlsx, .tsv, .ods)"
                   value={inputUrl}
                   onChange={(e) => setInputUrl(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleLoadFile()}

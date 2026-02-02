@@ -64,6 +64,22 @@ function getEnv(c: any, key: keyof Env): any {
   return c.env[key]
 }
 
+// Allowed table file extensions (CSV, TSV, Excel, ODS)
+const ALLOWED_EXT = ['.csv', '.tsv', '.xlsx', '.xls', '.ods']
+const CONTENT_TYPES: Record<string, string> = {
+  '.csv': 'text/csv',
+  '.tsv': 'text/tab-separated-values',
+  '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  '.xls': 'application/vnd.ms-excel',
+  '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+}
+
+function getFileExtension(name: string): string {
+  const m = name?.match(/\.([a-zA-Z0-9]+)$/i)
+  const ext = m ? ('.' + m[1].toLowerCase()) : '.csv'
+  return ALLOWED_EXT.includes(ext) ? ext : '.csv'
+}
+
 // Upload the .csv file to Cloudflare R2, and return the file url with a random generated name.
 app.post('/api/upload', async (c) => {
   try {
@@ -74,13 +90,15 @@ app.post('/api/upload', async (c) => {
     console.log('Body parsed, keys:', Object.keys(body))
     
     const file = body.file
-    
+    const filenameFromForm = typeof body.filename === 'string' ? body.filename.trim() : ''
+
     if (!file || !(file instanceof File)) {
       console.log('No file found in the request or not a File object')
       return c.json({ error: 'No file uploaded' }, 400)
     }
-    
-    console.log('File received:', file.name, 'Size:', file.size)
+
+    const originalName = (file.name && file.name.trim()) || filenameFromForm || ''
+    console.log('File received:', file.name, 'form filename:', filenameFromForm, 'Size:', file.size)
 
     const maxFileSize = Number(getEnv(c, 'MAX_FILE_SIZE'))
     if (file.size > maxFileSize) {
@@ -88,8 +106,9 @@ app.post('/api/upload', async (c) => {
       return c.json({ error: 'File size exceeds the maximum limit: ' + maxFileSize + ' bytes, your file size is ' + file.size + ' bytes' }, 413)
     }
 
-    // Generate a random file name
-    const fileName = `${randomUUID()}.csv`
+    // Preserve original extension (csv, tsv, xlsx, xls, ods); use form filename if File.name is empty
+    const ext = getFileExtension(originalName)
+    const fileName = `${randomUUID()}${ext}`
     console.log('Generated file name:', fileName)
 
     // Read the file and upload to R2
@@ -102,7 +121,7 @@ app.post('/api/upload', async (c) => {
 
     await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
-        contentType: 'text/csv',
+        contentType: CONTENT_TYPES[ext] || 'text/csv',
       }
     })
     console.log('File uploaded to R2 bucket')
@@ -191,9 +210,10 @@ app.post('/api/update/:folder/:fileName', async (c) => {
     const arrayBuffer = await file.arrayBuffer()
     console.log('File read into buffer, size:', arrayBuffer.byteLength)
 
+    const ext = getFileExtension(fileName)
     await bucket.put(targetFilePath, arrayBuffer, {
       httpMetadata: {
-        contentType: 'text/csv',
+        contentType: CONTENT_TYPES[ext] || 'text/csv',
       }
     })
     console.log('File updated in R2 bucket')
